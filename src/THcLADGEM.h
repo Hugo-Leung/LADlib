@@ -76,7 +76,6 @@ protected:
   std::string fPedFilename;
   std::string fCMFilename;
 
-  Double_t fGEMAngle;
   Double_t fD0Cut;
 
   TClonesArray *fGEMTracks;
@@ -130,7 +129,7 @@ protected:
   std::ofstream fpedfile_dbase, fCMfile_dbase, fpedfile_daq, fCMfile_daq, fCMbiasfile_dbase;
 
 public:
-  void Add2DHits(Int_t ilayer, Double_t x, Double_t y, Double_t z, Double_t t, Double_t dt, Double_t tc, Bool_t goodhit,
+  GEM2DHits* Add2DHits(Int_t ilayer, Double_t x, Double_t y, Double_t z, Double_t t, Double_t dt, Double_t tc, Bool_t goodhit,
                  Double_t adc, Double_t adcasy, Int_t clust_id1, Int_t clust_id2, Int_t sp_index);
   std::vector<GEM2DHits> Get2DHits(int layer) { return f2DHits[layer]; }
 

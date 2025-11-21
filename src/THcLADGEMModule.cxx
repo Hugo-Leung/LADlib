@@ -495,6 +495,12 @@ Int_t THcLADGEMModule::ReadDatabase(const TDatime &date) {
   for (int i = 0; i < 3; i++)
     fCenter[i] = 0.; // init
 
+  for (int i = 0; i < 2; i++)
+    fGEMAngle[i] = 0.; // init
+  for (int i = 0; i < 3; i++)
+    fRotation[i] = 0.; // init
+  
+
   // Geometry for each module
   const DBRequest list1[] = {{"_layer", &fLayer, kInt, 0, 1},
                              {"_apvmap", &fAPVmapping, kInt, 0, 1},
@@ -503,9 +509,10 @@ Int_t THcLADGEMModule::ReadDatabase(const TDatime &date) {
                              {"_uangle", &fUAngle, kDouble, 0, 1}, // mandatory: Angle of "U" strips wrt X axis
                              {"_vangle", &fVAngle, kDouble, 0, 1}, // mandatory: Angle of "V" strips wrt X axis
                              {"_position", fCenter, kDouble, static_cast<UInt_t>(3)},
+                             {"_angle", fGEMAngle, kDouble, static_cast<UInt_t>(2)}, // angle between centerline to the beam line(rotate along y, then z)
+                             {"_rotation", fRotation, kDouble, static_cast<UInt_t>(3)}, // rotation around the center of the detector along x, y, and z-axis
                              {0}};
   gHcParms->LoadParmValues((DBRequest *)&list1, prefix.c_str());
-
   // common for all layers -- move to THcLADGEM::ReadDatabase?
   const DBRequest list2[] = {{"lgem_zerosuppress", &fZeroSuppress, kInt, 0, 1}, // optional
                              {"lgem_zerosuppress_nsigma", &fZeroSuppressRMS, kDouble, 0, 1},
@@ -1173,7 +1180,7 @@ Int_t THcLADGEMModule::Decode(const THaEvData &evdata) {
         Int_t ADC = Int_t(decoded_rawADC);
 
         rawStrip[iraw] = strip;
-        Strip[iraw]    = GetStripNumber(strip, it->pos, it->invert);
+        Strip[iraw]    = GetStripNumber(strip, it->axis, it->pos, it->invert);
         rawADC[iraw]   = ADC;
 
         // Note: this prints out all 128 channels for 6 samples for each APV
@@ -2316,9 +2323,9 @@ void THcLADGEMModule::Find2DHits() {
         TVector2 PosUV(upos, vpos);
         TVector2 PosXY = UVtoXY(PosUV); // no changes if using XY GEM
 
-        double xpos = PosXY.X() + fCenter[0]; // FIXME: check how strip numbers are defined
-        double ypos = PosXY.Y() + fCenter[1];
-        double zpos = fCenter[2];
+        double xpos = PosXY.X(); // FIXME: check how strip numbers are defined
+        double ypos = PosXY.Y();
+        double zpos = 0;
 
         double tmean = 0.5 * (fClustersU[iu].GetTime() + fClustersV[iv].GetTime());
         double emean = 0.5 * (fClustersU[iu].GetADCsum() + fClustersV[iv].GetADCsum());
@@ -2409,8 +2416,20 @@ void THcLADGEMModule::Find2DHits() {
           if (nstripU > 1 && nstripV > 1) {
             int clust_id1 = fClustersU[iu].GetCLIndex();
             int clust_id2 = fClustersV[iv].GetCLIndex();
-            static_cast<THcLADGEM *>(fParent)->Add2DHits(fLayer, xpos, ypos, zpos, tmean, tdiff, tcorr, isgoodhit,
+            GEM2DHits* hitTmp =static_cast<THcLADGEM *>(fParent)->Add2DHits(fLayer, xpos, ypos, zpos, tmean, tdiff, tcorr, isgoodhit,
                                                          emean, adcasym, clust_id1, clust_id2, fN2Dhits - 1);
+             TVector3 vHit(xpos, ypos, zpos);
+             vHit.RotateX(fRotation[0] * TMath::DegToRad()); 
+             vHit.RotateY(fRotation[1] * TMath::DegToRad()); 
+             vHit.RotateZ(fRotation[2] * TMath::DegToRad());
+             vHit.SetX(vHit.X()+fCenter[0]); 
+             vHit.SetY(vHit.Y()+fCenter[1]); 
+             vHit.SetZ(vHit.Z()+fCenter[2]);
+             vHit.RotateY(fGEMAngle[0] * TMath::DegToRad()); 
+             vHit.RotateZ(fGEMAngle[1] * TMath::DegToRad()); 
+             hitTmp->posX=vHit.X();
+             hitTmp->posY=vHit.Y();
+             hitTmp->posZ=vHit.Z();
           }
         } else {
           cout << "THcLADGEMModule::Find2DHits -- Warning: Max number of 2D hits exceeded" << endl;
@@ -2474,14 +2493,21 @@ TVector2 THcLADGEMModule::XYtoUV(TVector2 XY) {
   return TVector2(Utemp, Vtemp);
 }
 
-Int_t THcLADGEMModule::GetStripNumber(UInt_t rawstrip, UInt_t pos, UInt_t invert) {
+Int_t THcLADGEMModule::GetStripNumber(UInt_t rawstrip, UInt_t axis, UInt_t pos, UInt_t invert) {
   Int_t RstripNb = APVMAP[fAPVmapping][rawstrip];
 
   // LHE: Not sure if this code below should be there, or if the number should be 38 or 42.
-  if (RstripNb & 1)
-    RstripNb = 48 - (RstripNb + 1) / 2;
-  else
-    RstripNb = 48 + RstripNb / 2;
+  if (axis == LADGEM::kUaxis && pos==11){//CHL I think this is for U strips on pos 11??
+    if (RstripNb & 1)
+      RstripNb = 48 - (RstripNb + 1) / 2;
+    else
+      RstripNb = 48 + RstripNb / 2;
+  }else{
+    if (RstripNb & 1)
+      RstripNb = 32 - (RstripNb + 1) / 2;
+    else
+      RstripNb = 32 + RstripNb / 2;
+  }
   RstripNb &= 0x7f;
   // LHE: End code change
   RstripNb        = RstripNb + (127 - 2 * RstripNb) * invert;
@@ -3315,7 +3341,7 @@ void THcLADGEMModule::PrintPedestals( std::ofstream &dbfile_CM, std::ofstream &d
     
     //Then loop over the strips:
     for( int ich=0; ich<fN_APV25_CHAN; ich++ ){
-      int strip = GetStripNumber( ich, pos, invert );
+      int strip = GetStripNumber( ich, axis, pos, invert );
       double pedmean = (axis == LADGEM::kUaxis ) ? fPedestalU[strip] : fPedestalV[strip];
       double pedrms = (axis == LADGEM::kUaxis ) ? fPedRMSU[strip] : fPedRMSV[strip];
 

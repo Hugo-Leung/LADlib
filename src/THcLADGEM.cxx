@@ -242,23 +242,23 @@ Int_t THcLADGEM::ReadDatabase(const TDatime &date) {
   prefix[1] = '\0';
 
   // initial values
-  fGEMAngle    = 127.0; // GEM angle in degrees
   fD0Cut       = 100.0; // DCA cut in cm
   fPedFilename = "";
   fCMFilename  = "";
   fPedestalMode = 0;
   DBRequest list[] = {{"gem_num_modules", &fNModules, kInt}, // should be defined in DB file
                       {"gem_num_layers", &fNLayers, kInt},
-                      {"gem_angle", &fGEMAngle, kDouble, 0, 1},
                       {"gem_pedfile", &fPedFilename, kString, 0, 1},
                       {"gem_cmfile", &fCMFilename, kString, 0, 1},
                       {"gem_d0_cut", &fD0Cut, kDouble, 0, 1},
-                      {"gem_pedestal_mode", &fPedestalMode, kInt, 0, 1},
                       {0}
 
   };
   gHcParms->LoadParmValues((DBRequest *)&list, prefix);
-  
+
+  DBRequest list2[] = {{"lgem_pedestal_mode", &fPedestalMode, kInt, 0, 1}};
+  gHcParms->LoadParmValues((DBRequest *)&list2,"");
+  std::cout<< "THcLADGEM: Pedestal mode set to " << fPedestalMode << std::endl;
   // Define GEM Modules
   for (int imod = 0; imod < fNModules; imod++) {
     THcLADGEMModule *new_module = new THcLADGEMModule(Form("m%d", imod), Form("m%d", imod), imod, this);
@@ -395,8 +395,6 @@ Int_t THcLADGEM::CoarseProcess(TClonesArray &tracks) {
     }
   }
 
-  double angle = fGEMAngle * TMath::DegToRad();
-
   // if we have less than two layers, no tracking can be done
   if (fNLayers < 2)
     return 0;
@@ -407,11 +405,6 @@ Int_t THcLADGEM::CoarseProcess(TClonesArray &tracks) {
     // param file instead, but we're currently trying to debug low-level gem issues, and doing this is one less moving
     // part.
     TVector3 v_hit1(gemhit1.posX, gemhit1.posY, gemhit1.posZ);
-    v_hit1.RotateY(angle);
-    gemhit1.posX = v_hit1[0];
-    gemhit1.posY = v_hit1[1];
-    gemhit1.posZ = v_hit1[2];
-
     for (auto gemhit2 : f2DHits[fNLayers - 1]) {
       int gemhit2_id = 0;
 
@@ -427,14 +420,6 @@ Int_t THcLADGEM::CoarseProcess(TClonesArray &tracks) {
       // this_track = AddTrack(tracks, 0.0, 0.0, 0.0, 0.0); // AddTrack is func of THaTrackingDetector
       // FIXME: theta, phi might be defined differently in TVector3 and THaTrack
       // this_track->SetD(v_hit1.X(), v_hit1.Y(), v_hit1.Theta(), v_hit1.Phi() ); // DCS x, y , theta, phi
-
-      // Rotate along y-axis
-      v_hit2.RotateY(angle);
-
-      // Set New position
-      gemhit2.posX = v_hit2[0];
-      gemhit2.posY = v_hit2[1];
-      gemhit2.posZ = v_hit2[2];
 
       // d0: DCAr from the primary vertex, assume (0,0,0) for now
       // we want to get the prima(0., 0., 0.);
@@ -523,7 +508,7 @@ void THcLADGEM::RotateToLab(Double_t angle, TVector3 &vect) {
 }
 
 //____________________________________________________________
-void THcLADGEM::Add2DHits(Int_t ilayer, Double_t x, Double_t y, Double_t z, Double_t t, Double_t dt, Double_t tc,
+GEM2DHits* THcLADGEM::Add2DHits(Int_t ilayer, Double_t x, Double_t y, Double_t z, Double_t t, Double_t dt, Double_t tc,
                           Bool_t goodhit, Double_t adc, Double_t adcasy, Int_t clust_id1, Int_t clust_id2,
                           Int_t sp_index) {
   // FIXME:Add flag for filtering good hits?
@@ -536,6 +521,7 @@ void THcLADGEM::Add2DHits(Int_t ilayer, Double_t x, Double_t y, Double_t z, Doub
   f2DHits[ilayer].push_back(gemhit);
   // Set initial spID = -1
   //  f2DHits[ilayer].push_back( {ilayer, x, y, z, t, dt, tc, goodhit, adc, adcasy, -1} );
+  return &(f2DHits[ilayer].back());
 }
 
 //____________________________________________________________
@@ -604,7 +590,7 @@ void THcLADGEM::LoadPedestals() {
               int this_apvchan = APVChan[this_crate][this_slot][this_index][i];
               double this_mean = PedMean[this_crate][this_slot][this_index][i];
               double this_rms  = PedRMS[this_crate][this_slot][this_index][i];
-              int this_strip   = fModules[module]->GetStripNumber(this_apvchan, it->pos, it->invert);
+              int this_strip   = fModules[module]->GetStripNumber(this_apvchan, it->axis, it->pos, it->invert);
 
               if (it->axis == LADGEM::kUaxis) {
                 fModules[module]->fPedestalU[this_strip] = this_mean;
