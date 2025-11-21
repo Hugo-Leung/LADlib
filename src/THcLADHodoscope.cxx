@@ -60,6 +60,12 @@ THcLADHodoscope::~THcLADHodoscope() {
   fHodoCableFit = NULL;
   delete[] fHodo_LCoeff;
   fHodo_LCoeff = NULL;
+  delete[] fHodoVelFit_FADC;
+  fHodoVelFit_FADC = NULL;
+  delete[] fHodoCableFit_FADC;
+  fHodoCableFit_FADC = NULL;
+  delete[] fHodo_LCoeff_FADC;
+  fHodo_LCoeff_FADC = NULL;
   delete[] fHodoTop_c1;
   fHodoTop_c1 = NULL;
   delete[] fHodoBtm_c1;
@@ -287,15 +293,18 @@ Int_t THcLADHodoscope::ReadDatabase(const TDatime &date) {
   fHodoVelLight = new Double_t[fMaxHodoScin];
 
   // Time walk
-  fHodoVelFit   = new Double_t[fMaxHodoScin];
-  fHodoCableFit = new Double_t[fMaxHodoScin];
-  fHodo_LCoeff  = new Double_t[fMaxHodoScin];
-  fHodoTop_c1   = new Double_t[fMaxHodoScin];
-  fHodoBtm_c1   = new Double_t[fMaxHodoScin];
-  fHodoTop_c2   = new Double_t[fMaxHodoScin];
-  fHodoBtm_c2   = new Double_t[fMaxHodoScin];
-  fEdep2MeV_int = new Double_t[fMaxHodoScin];
-  fEdep2MeV_amp = new Double_t[fMaxHodoScin];
+  fHodoVelFit        = new Double_t[fMaxHodoScin];
+  fHodoCableFit      = new Double_t[fMaxHodoScin];
+  fHodo_LCoeff       = new Double_t[fMaxHodoScin];
+  fHodoVelFit_FADC   = new Double_t[fMaxHodoScin];
+  fHodoCableFit_FADC = new Double_t[fMaxHodoScin];
+  fHodo_LCoeff_FADC  = new Double_t[fMaxHodoScin];
+  fHodoTop_c1        = new Double_t[fMaxHodoScin];
+  fHodoBtm_c1        = new Double_t[fMaxHodoScin];
+  fHodoTop_c2        = new Double_t[fMaxHodoScin];
+  fHodoBtm_c2        = new Double_t[fMaxHodoScin];
+  fEdep2MeV_int      = new Double_t[fMaxHodoScin];
+  fEdep2MeV_amp      = new Double_t[fMaxHodoScin];
 
   for (int ii = 0; ii < fMaxHodoScin; ii++) {
     fHodoTopAdcTimeWindowMin[ii] = -1000.;
@@ -342,6 +351,9 @@ Int_t THcLADHodoscope::ReadDatabase(const TDatime &date) {
   DBRequest list4[] = {// {"ladhodo_velFit", &fHodoVelFit[0], kDouble, (UInt_t)fMaxHodoScin, 1},
                        {"ladhodo_cableFit", &fHodoCableFit[0], kDouble, (UInt_t)fMaxHodoScin, 1},
                        {"ladhodo_LCoeff", &fHodo_LCoeff[0], kDouble, (UInt_t)fMaxHodoScin, 1},
+                       // {"ladhodo_velFit_FADC", &fHodoVelFit_FADC[0], kDouble, (UInt_t)fMaxHodoScin, 1},
+                       {"ladhodo_cableFit_FADC", &fHodoCableFit_FADC[0], kDouble, (UInt_t)fMaxHodoScin, 1},
+                       {"ladhodo_LCoeff_FADC", &fHodo_LCoeff_FADC[0], kDouble, (UInt_t)fMaxHodoScin, 1},
                        {"ladhodo_c1_Top", &fHodoTop_c1[0], kDouble, (UInt_t)fMaxHodoScin, 1},
                        {"ladhodo_c1_Btm", &fHodoBtm_c1[0], kDouble, (UInt_t)fMaxHodoScin, 1},
                        {"ladhodo_c2_Top", &fHodoTop_c2[0], kDouble, (UInt_t)fMaxHodoScin, 1},
@@ -363,8 +375,9 @@ Int_t THcLADHodoscope::ReadDatabase(const TDatime &date) {
   }
   for (int i = 0; i < fMaxHodoScin; i++) {
     // Set scin Velocity/Cable to default
-    fHodoCableFit[i] = 0.0;
-    fHodoVelFit[i]   = 15.0;
+    fHodoCableFit[i]    = 0.0;
+    fHodoVelFit[i]      = 15.0;
+    fHodoVelFit_FADC[i] = 15.0;
     // set time coeff between paddles to default
     fHodo_LCoeff[i] = 0.0;
   }

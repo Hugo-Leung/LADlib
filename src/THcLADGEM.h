@@ -65,7 +65,7 @@ protected:
   void LoadCM();
   void RotateToLab(Double_t angle, TVector3 &vect);
 
-  static const Int_t MAXTRACKS = 500; //Was 100
+  static const Int_t MAXTRACKS = 500; // Was 100
 
   Int_t fNModules; // total number of modules
   Int_t fNLayers;  // total number of GEM layers
@@ -125,12 +125,16 @@ protected:
   std::vector<Int_t> fClusID1;
   std::vector<Int_t> fSPID;
   std::vector<Int_t> fLayer;
+
+  bool fIgnoreVertex;
   std::ofstream fpedfile_dbase, fCMfile_dbase, fpedfile_daq, fCMfile_daq, fCMbiasfile_dbase;
 
 public:
   void Add2DHits(Int_t ilayer, Double_t x, Double_t y, Double_t z, Double_t t, Double_t dt, Double_t tc, Bool_t goodhit,
-                 Double_t adc, Double_t adcasy,Int_t clust_id1, Int_t clust_id2, Int_t sp_index);
+                 Double_t adc, Double_t adcasy, Int_t clust_id1, Int_t clust_id2, Int_t sp_index);
   std::vector<GEM2DHits> Get2DHits(int layer) { return f2DHits[layer]; }
+
+  void setIgnoreVertex(bool val) { fIgnoreVertex = val; }
 
   ClassDef(THcLADGEM, 0)
 };

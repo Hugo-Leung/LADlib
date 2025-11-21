@@ -19,11 +19,13 @@ public:
   Double_t GetTopADCCorrtime() const { return fTopADC_CorrTime; }
   Double_t GetBtmADCCorrtime() const { return fBtmADC_CorrTime; }
   Double_t GetCalcPosition() const { return fCalcPosition; }
+  Double_t GetCalcPosition_FADC() const { return fCalcPosition_FADC; }
   Int_t GetTopTDC() const { return fTopTDC; }
   Int_t GetBtmTDC() const { return fBtmTDC; }
   Double_t GetTopCorrectedTime() const { return fTopCorrectedTime; }
   Double_t GetBtmCorrectedTime() const { return fBtmCorrectedTime; }
   Double_t GetScinCorrectedTime() const { return fScinCorrectedTime; }
+  Double_t GetScinCorrectedTime_FADC() const { return fScinCorrectedTime_FADC; }
   Bool_t GetTwoGoodTimes() const { return fTwoGoodTimes; }
   Bool_t GetHasCorrectedTimes() const { return fHasCorrectedTimes; }
   Int_t GetPaddleNumber() const { return fPaddleNumber; }
@@ -43,9 +45,12 @@ public:
   void SetTopADCCorrtime(Double_t ptime) { fTopADC_CorrTime = ptime; }
   void SetBtmADCCorrtime(Double_t ptime) { fBtmADC_CorrTime = ptime; }
   void SetCalcPosition(Double_t calcpos) { fCalcPosition = calcpos; }
+  void SetCalcPosition_FADC(Double_t calcpos) { fCalcPosition_FADC = calcpos; }
   void SetBtmADCtime(Double_t ptime) { fBtmADC_Time = ptime; }
   void SetCorrectedTimes(Double_t top, Double_t btm);
   void SetCorrectedTimes(Double_t top, Double_t btm, Double_t timeave);
+  void SetCorrectedTimes_FADC(Double_t top, Double_t btm);
+  void SetCorrectedTimes_FADC(Double_t top, Double_t btm, Double_t timeave);
   void SetTOFCorrectedTimes(Double_t top, Double_t btm, Double_t timeave);
 
 protected:
@@ -60,16 +65,20 @@ protected:
   Double_t fTopADC_CorrTime; // ADC time
   Double_t fBtmADC_CorrTime; // ADC time
   Double_t fCalcPosition;    // Position along paddle calculated by time diff
+  Double_t fCalcPosition_FADC; // Position along paddle calculated by time diff using FADC times
   Int_t fPaddleNumber;
 
-  Double_t fTopCorrectedTime;    // Pulse height corrected time
-  Double_t fBtmCorrectedTime;    // Pulse height corrected time
-  Double_t fScinCorrectedTime;   // Time average corrected for position
-                                 // based on ADCs.
-  Double_t fTopTOFCorrectedTime; // Times corrected for z position
-  Double_t fBtmTOFCorrectedTime; // using nominal beta
+  Double_t fTopCorrectedTime;  // Pulse height corrected time
+  Double_t fBtmCorrectedTime;  // Pulse height corrected time
+  Double_t fScinCorrectedTime; // Time average corrected for position
+  // based on ADCs.
+  Double_t fScinCorrectedTime_FADC; // Time average corrected for position
+                                   // based on ADCs.
+
+  Double_t fTopTOFCorrectedTime;  // Times corrected for z position
+  Double_t fBtmTOFCorrectedTime;  // using nominal beta
   Double_t fScinTOFCorrectedTime; // Times corrected for z position
-                                   // using nominal beta
+                                  // using nominal beta
 
   Bool_t fHasCorrectedTimes;
   Bool_t fTwoGoodTimes;

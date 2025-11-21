@@ -22,6 +22,19 @@ void THcLADHodoHit::SetCorrectedTimes(Double_t top, Double_t btm) {
   fBtmCorrectedTime = btm;
   fHasCorrectedTimes = kFALSE;
 }
+
+void THcLADHodoHit::SetCorrectedTimes_FADC(Double_t top, Double_t btm, Double_t timeave) {
+  fTopADC_Time = top;
+  fBtmADC_Time = btm;
+  fScinCorrectedTime_FADC = timeave;
+  fHasCorrectedTimes = kTRUE;
+}
+void THcLADHodoHit::SetCorrectedTimes_FADC(Double_t top, Double_t btm) {
+  fTopADC_Time = top;
+  fBtmADC_Time = btm;
+  fHasCorrectedTimes = kFALSE;
+}
+
 void THcLADHodoHit::SetTOFCorrectedTimes(Double_t top, Double_t btm, Double_t timeave) {
   fTopTOFCorrectedTime = top;
   fBtmTOFCorrectedTime = btm;

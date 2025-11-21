@@ -235,6 +235,9 @@ protected:
   Double_t *fHodoVelFit;
   Double_t *fHodoCableFit;
   Double_t *fHodo_LCoeff;
+  Double_t *fHodoVelFit_FADC;
+  Double_t *fHodoCableFit_FADC;
+  Double_t *fHodo_LCoeff_FADC;
   Double_t *fHodoTop_c1;
   Double_t *fHodoBtm_c1;
   Double_t *fHodoTop_c2;

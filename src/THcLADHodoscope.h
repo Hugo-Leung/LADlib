@@ -51,6 +51,9 @@ public:
   Double_t GetHodoVelFit(Int_t iii) const { return fHodoVelFit[iii]; }
   Double_t GetHodoCableFit(Int_t iii) const { return fHodoCableFit[iii]; }
   Double_t GetHodoLCoeff(Int_t iii) const { return fHodo_LCoeff[iii]; }
+  Double_t GetHodoVelFit_FADC(Int_t iii) const { return fHodoVelFit_FADC[iii]; }
+  Double_t GetHodoCableFit_FADC(Int_t iii) const { return fHodoCableFit_FADC[iii]; }
+  Double_t GetHodoLCoeff_FADC(Int_t iii) const { return fHodo_LCoeff_FADC[iii]; }
   Double_t GetHodoTop_c1(Int_t iii) const { return fHodoTop_c1[iii]; }
   Double_t GetHodoBtm_c1(Int_t iii) const { return fHodoBtm_c1[iii]; }
   Double_t GetHodoTop_c2(Int_t iii) const { return fHodoTop_c2[iii]; }
@@ -95,6 +98,9 @@ protected:
   Double_t *fHodoVelFit;
   Double_t *fHodoCableFit;
   Double_t *fHodo_LCoeff;
+  Double_t *fHodoVelFit_FADC;
+  Double_t *fHodoCableFit_FADC;
+  Double_t *fHodo_LCoeff_FADC;
   Double_t *fHodoTop_c1;
   Double_t *fHodoBtm_c1;
   Double_t *fHodoTop_c2;
