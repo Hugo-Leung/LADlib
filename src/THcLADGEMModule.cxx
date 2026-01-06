@@ -2215,9 +2215,13 @@ void THcLADGEMModule::FindClusters1D(LADGEM::GEMaxis_t axis) {
 
     map<int, double> splitfraction;
     vector<double> adcsamples(fN_MPD_TIME_SAMP);
-    for (int isamp = 0; isamp < fN_MPD_TIME_SAMP; isamp++)
+    vector<double> adcsamples_deconv(fN_MPD_TIME_SAMP);
+    vector<double> stripADCsums;
+    vector<double> stripADCsums_deconv;
+    for (int isamp = 0; isamp < fN_MPD_TIME_SAMP; isamp++){
       adcsamples[isamp] = 0.0;
-
+      adcsamples_deconv[isamp] = 0.0;
+    }
     double maxpos = (stripmax + 0.5 - 0.5 * Nstrips) * pitch + offset;
 
     // loop over strips in cluster
@@ -2244,10 +2248,12 @@ void THcLADGEMModule::FindClusters1D(LADGEM::GEMaxis_t axis) {
 
       for (int isamp = 0; isamp < fN_MPD_TIME_SAMP; isamp++) {
         adcsamples[isamp] += fADCsamples[hitindex[istrip]][isamp] * splitfraction[istrip];
+        adcsamples_deconv[isamp] += fADCsamples_deconv[hitindex[istrip]][isamp] * splitfraction[istrip];
       }
       // FIXME: skip storing strip adc, adcsum.. add here if needed later see L3729
       // prob better way is to add hit object
-
+      stripADCsums.push_back(fADCsums[hitindex[istrip]] * splitfraction[istrip]);
+      stripADCsums_deconv.push_back(fADCsumsDeconv[hitindex[istrip]] * splitfraction[istrip]);
       sumADC += fADCsums[hitindex[istrip]] * splitfraction[istrip];
 
       if (std::abs(istrip - stripmax) <= std::max(UShort_t(1), std::min(maxsepcoord, maxsep))) {
@@ -2273,6 +2279,7 @@ void THcLADGEMModule::FindClusters1D(LADGEM::GEMaxis_t axis) {
     cluster.SetLayer(fLayer);
     cluster.SetMPD(fStripMPD[hitindex[stripmax]]);
     cluster.SetAPV(fStripADC_ID[hitindex[stripmax]]);
+    cluster.SetRawStrip(fStripRaw[hitindex[stripmax]]);
     cluster.SetAxis(axis);
     cluster.SetStrips(nstrips, striplo, striphi, stripmax);
     cluster.SetPosition(sumx / sumwx);
@@ -2287,7 +2294,10 @@ void THcLADGEMModule::FindClusters1D(LADGEM::GEMaxis_t axis) {
     cluster.SetADCMax(maxADC);
     cluster.SetSampMax(sampleMax);
     cluster.SetTime(sumt / sumwx, sqrt(sumt2 / sumwx - pow(sumt / sumwx, 2)));
-
+    cluster.SetADCsamples(adcsamples);
+    cluster.SetDeconvADCsamples(adcsamples_deconv);
+    cluster.SetStripADCsum(stripADCsums);
+    cluster.SetDeconvADCsum(stripADCsums_deconv);
     // Calculate fit time
     double tfit = CalcFitTime(adcsamples, 20.0 * sqrt(double(nstrips)));
     cluster.SetTimeFit(tfit);
