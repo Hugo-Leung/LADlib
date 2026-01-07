@@ -353,7 +353,7 @@ Int_t THcLADGEM::CoarseProcess(TClonesArray &tracks) {
         fClusOutData.mpos.push_back(cluster.GetPosMax());
         fClusOutData.maxsamp.push_back(cluster.GetSampMax());
         fClusOutData.maxadc.push_back(cluster.GetADCMax());
-        fClusOutData.apvGain.push_back(module->GetAPVGain(cluster.GetAPV(), cluster.GetAxis()));
+        fClusOutData.apvGain.push_back(module->GetAPVGain(cluster.GetStripMax()/128, cluster.GetAxis()));//FIXME: Assumes 128 strips per APV, should get from module
         fNClusters++;
       }
     }
