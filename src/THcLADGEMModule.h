@@ -88,6 +88,7 @@ class THcLADGEMModule : public THaSubDetector {
   Int_t GetNStripsHit()  { return fNstrips_hit; }
   Int_t GetN2DHits()     { return fN2Dhits; }
   void PrintPedestals( std::ofstream &dbfile_CM, std::ofstream &daqfile_ped, std::ofstream &daqfile_CM );
+  Double_t GetAPVGain( Int_t apv_id, Int_t axis );
   
  protected:
   

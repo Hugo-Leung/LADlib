@@ -3506,3 +3506,25 @@ Int_t THcLADGEMModule::End (THaRunBase* r) {
 //____________________________________________________________________________________
 
 void THcLADGEMModule::SetTriggerTime(Double_t ttrig) { fTrigTime = fabs(ttrig) < fMaxTrigTimeCorrection ? ttrig : 0.0; }
+
+//____________________________________________________________________________________
+Double_t THcLADGEMModule::GetAPVGain(Int_t apv_id, Int_t axis)  {
+  if (axis == LADGEM::kUaxis) {
+    if (apv_id >= 0 && UInt_t(apv_id) < fUgain.size()) {
+      return fUgain[apv_id];
+    } else {
+      Error(Here("GetAPVGain"), "Invalid APV position %d for U axis", apv_id);
+      return -1e10;
+    }
+  } else if (axis == LADGEM::kVaxis) {
+    if (apv_id >= 0 && UInt_t(apv_id) < fVgain.size()) {
+      return fVgain[apv_id];
+    } else {
+      Error(Here("GetAPVGain"), "Invalid APV position %d for V axis", apv_id);
+      return -1e10;
+    }
+  } else {
+    Error(Here("GetAPVGain"), "Invalid axis %d", axis);
+    return -2e10;
+  }
+}

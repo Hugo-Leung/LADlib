@@ -127,7 +127,9 @@ Int_t THcLADGEM::DefineVariables(EMode mode) {
                          {"clust.axis", "U/V axis", "fClusOutData.axis"},
                          {"clust.mpd", "MPD ID", "fClusOutData.mpdid"},
                          {"clust.nstrip", "Number of strips in cluster", "fClusOutData.nstrip"},
-                         {"clust.maxstrip", "Max strip of the given cluster", "fClusOutData.maxstrip"},
+                         {"clust.maxstrip", "index of the strip with max ADC of the given cluster", "fClusOutData.maxstrip"},
+                         {"clust.striplo", "index of the lowest strip in the cluster", "fClusOutData.striplo"},
+                         {"clust.striphi", "index of the highest strip in the cluster", "fClusOutData.striphi"},
                          {"clust.index", "Cluster index", "fClusOutData.clindex"},
                          {"clust.adc", "Cluster ADC sum", "fClusOutData.adc"},
                          {"clust.time", "Cluster Time mean", "fClusOutData.time"},
@@ -135,6 +137,7 @@ Int_t THcLADGEM::DefineVariables(EMode mode) {
                          {"clust.maxpos", "Max strip pos of the cluster", "fClusOutData.mpos"},
                          {"clust.maxsamp", "Time sample with max ADC", "fClusOutData.maxsamp"},
                          {"clust.maxadc", "Max strip ADC", "fClusOutData.maxadc"},
+                         {"clust.apvGain", "APV gain correction factor", "fClusOutData.apvGain"},
                          {0}};
 
   DefineVarsFromList(vars_clus, mode);
@@ -341,6 +344,8 @@ Int_t THcLADGEM::CoarseProcess(TClonesArray &tracks) {
         fClusOutData.axis.push_back(cluster.GetAxis());
         fClusOutData.nstrip.push_back(cluster.GetNStrips());
         fClusOutData.maxstrip.push_back(cluster.GetStripMax());
+        fClusOutData.striplo.push_back(cluster.GetStripLow());
+        fClusOutData.striphi.push_back(cluster.GetStripHigh());
         fClusOutData.clindex.push_back(cluster.GetCLIndex());
         fClusOutData.adc.push_back(cluster.GetADCsum());
         fClusOutData.time.push_back(cluster.GetTime());
@@ -348,6 +353,7 @@ Int_t THcLADGEM::CoarseProcess(TClonesArray &tracks) {
         fClusOutData.mpos.push_back(cluster.GetPosMax());
         fClusOutData.maxsamp.push_back(cluster.GetSampMax());
         fClusOutData.maxadc.push_back(cluster.GetADCMax());
+        fClusOutData.apvGain.push_back(module->GetAPVGain(cluster.GetAPV(), cluster.GetAxis()));
         fNClusters++;
       }
     }
