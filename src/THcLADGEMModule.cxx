@@ -940,7 +940,14 @@ Int_t THcLADGEMModule::DefineVariables(EMode mode) {
   // Add variable for number of 2D hits
   VarDef vars2D[] = {{"n2Dhits", "Number of 2D hits", kUInt, 0, &fN2Dhits}, {nullptr}};
 
-  return DefineVarsFromList(vars2D, mode);
+  DefineVarsFromList(vars2D, mode);
+
+  VarDef varClus[] = {
+    {"nclusters", "Number of clusters", kInt, 0, &fNClus},
+    {nullptr}
+  };
+
+  return DefineVarsFromList(varClus, mode);
 }
 
 //____________________________________________________________________________________
@@ -2215,9 +2222,14 @@ void THcLADGEMModule::FindClusters1D(LADGEM::GEMaxis_t axis) {
 
     map<int, double> splitfraction;
     vector<double> adcsamples(fN_MPD_TIME_SAMP);
-    for (int isamp = 0; isamp < fN_MPD_TIME_SAMP; isamp++)
+    vector<double> adcsamples_deconv(fN_MPD_TIME_SAMP);
+    vector<double> stripADCsums;
+    vector<double> stripADCsums_deconv;
+    std::vector<UInt_t> clust_hitindex;
+    for (int isamp = 0; isamp < fN_MPD_TIME_SAMP; isamp++){
       adcsamples[isamp] = 0.0;
-
+      adcsamples_deconv[isamp] = 0.0;
+    }
     double maxpos = (stripmax + 0.5 - 0.5 * Nstrips) * pitch + offset;
 
     // loop over strips in cluster
@@ -2244,10 +2256,12 @@ void THcLADGEMModule::FindClusters1D(LADGEM::GEMaxis_t axis) {
 
       for (int isamp = 0; isamp < fN_MPD_TIME_SAMP; isamp++) {
         adcsamples[isamp] += fADCsamples[hitindex[istrip]][isamp] * splitfraction[istrip];
+        adcsamples_deconv[isamp] += fADCsamples_deconv[hitindex[istrip]][isamp] * splitfraction[istrip];
       }
       // FIXME: skip storing strip adc, adcsum.. add here if needed later see L3729
       // prob better way is to add hit object
-
+      stripADCsums.push_back(fADCsums[hitindex[istrip]] * splitfraction[istrip]);
+      stripADCsums_deconv.push_back(fADCsumsDeconv[hitindex[istrip]] * splitfraction[istrip]);
       sumADC += fADCsums[hitindex[istrip]] * splitfraction[istrip];
 
       if (std::abs(istrip - stripmax) <= std::max(UShort_t(1), std::min(maxsepcoord, maxsep))) {
@@ -2257,6 +2271,7 @@ void THcLADGEMModule::FindClusters1D(LADGEM::GEMaxis_t axis) {
         sumt += tstrip * ADCstrip;
         sumt2 += pow(tstrip, 2) * ADCstrip;
       }
+      clust_hitindex.push_back(hitindex[istrip]);
     } // istrip
 
     double maxADC = 0.0;
@@ -2267,16 +2282,18 @@ void THcLADGEMModule::FindClusters1D(LADGEM::GEMaxis_t axis) {
         sampleMax = isamp;
       }
     }
-
+    
     THcLADGEMCluster cluster;
     cluster.SetMode(fClusteringFlag);
     cluster.SetLayer(fLayer);
     cluster.SetMPD(fStripMPD[hitindex[stripmax]]);
     cluster.SetAPV(fStripADC_ID[hitindex[stripmax]]);
+    cluster.SetRawStrip(fStripRaw[hitindex[stripmax]]);
     cluster.SetAxis(axis);
     cluster.SetStrips(nstrips, striplo, striphi, stripmax);
     cluster.SetPosition(sumx / sumwx);
     cluster.SetPosMaxStrip(maxpos);
+    cluster.SetHitIndex(clust_hitindex);
 
     double mom       = ((sumx / sumwx) - maxpos) / pitch;
     double pos_sigma = sqrt(sumx2 / sumwx - pow(sumx / sumwx, 2));
@@ -2287,7 +2304,10 @@ void THcLADGEMModule::FindClusters1D(LADGEM::GEMaxis_t axis) {
     cluster.SetADCMax(maxADC);
     cluster.SetSampMax(sampleMax);
     cluster.SetTime(sumt / sumwx, sqrt(sumt2 / sumwx - pow(sumt / sumwx, 2)));
-
+    cluster.SetADCsamples(adcsamples);
+    cluster.SetDeconvADCsamples(adcsamples_deconv);
+    cluster.SetStripADCsum(stripADCsums);
+    cluster.SetDeconvADCsum(stripADCsums_deconv);
     // Calculate fit time
     double tfit = CalcFitTime(adcsamples, 20.0 * sqrt(double(nstrips)));
     cluster.SetTimeFit(tfit);
@@ -2309,6 +2329,9 @@ void THcLADGEMModule::Find2DHits() {
 
   Int_t nclustU = GetNClusters(0);
   Int_t nclustV = GetNClusters(1);
+
+  int nsamp_corr = fN_MPD_TIME_SAMP;
+  int firstsamp_corr = 0;
 
   if (nclustU > 0 && nclustV) {
 
@@ -2335,6 +2358,17 @@ void THcLADGEMModule::Find2DHits() {
                          (fClustersU[iu].GetADCsum() + fClustersV[iv].GetADCsum());
 
         // FIXME: correlation coefficient cut not included here
+        double corrcoeff_clust = CorrCoeff(fN_MPD_TIME_SAMP, fClustersU[iu].GetADCsamples(),
+                                               fClustersV[iv].GetADCsamples(), firstsamp_corr);
+        double corrcoeff_deconv = CorrCoeff(fN_MPD_TIME_SAMP, fClustersU[iu].GetDeconvADCsamples(),
+                                                 fClustersV[iv].GetDeconvADCsamples(), firstsamp_corr);
+
+        UInt_t uhitindex = fClustersU[iu].GetHitIndex().at(fClustersU[iu].GetStripMax()- fClustersU[iu].GetStripLow());
+        UInt_t vhitindex = fClustersV[iv].GetHitIndex().at(fClustersV[iv].GetStripMax()- fClustersV[iv].GetStripLow());
+        double corrcoeff_strip = CorrCoeff(fN_MPD_TIME_SAMP, fADCsamples[uhitindex],
+                                                 fADCsamples[vhitindex], firstsamp_corr);
+        double corrcoeff_strip_deconv = CorrCoeff(fN_MPD_TIME_SAMP, fADCsamples_deconv[uhitindex],
+                                                         fADCsamples_deconv[vhitindex], firstsamp_corr);
 
         double tdiff = fClustersU[iu].GetTime() - fClustersV[iv].GetTime() - (fHitTimeMean[0] - fHitTimeMean[1]);
 
@@ -2408,28 +2442,33 @@ void THcLADGEMModule::Find2DHits() {
         // filter for 2D hits apply tdiff, adcasym, corrcoeff cuts based on
         // fTimeCutUVdiff, fADCasymCut....
 
-        fN2Dhits++;
 
-        if (fN2Dhits < fMAX2DHITS) {
+        if (fN2Dhits +1 < fMAX2DHITS) {
 
           // Add to 2Dhit list
           if (nstripU > 1 && nstripV > 1) {
             int clust_id1 = fClustersU[iu].GetCLIndex();
             int clust_id2 = fClustersV[iv].GetCLIndex();
             GEM2DHits* hitTmp =static_cast<THcLADGEM *>(fParent)->Add2DHits(fLayer, xpos, ypos, zpos, tmean, tdiff, tcorr, isgoodhit,
-                                                         emean, adcasym, clust_id1, clust_id2, fN2Dhits - 1);
-             TVector3 vHit(xpos, ypos, zpos);
-             vHit.RotateX(fRotation[0] * TMath::DegToRad()); 
-             vHit.RotateY(fRotation[1] * TMath::DegToRad()); 
-             vHit.RotateZ(fRotation[2] * TMath::DegToRad());
-             vHit.SetX(vHit.X()+fCenter[0]); 
-             vHit.SetY(vHit.Y()+fCenter[1]); 
-             vHit.SetZ(vHit.Z()+fCenter[2]);
-             vHit.RotateY(fGEMAngle[0] * TMath::DegToRad()); 
-             vHit.RotateZ(fGEMAngle[1] * TMath::DegToRad()); 
-             hitTmp->posX=vHit.X();
-             hitTmp->posY=vHit.Y();
-             hitTmp->posZ=vHit.Z();
+                                                         emean, adcasym, clust_id1, clust_id2, fN2Dhits);
+            TVector3 vHit(xpos, ypos, zpos);
+            vHit.RotateX(fRotation[0] * TMath::DegToRad()); 
+            vHit.RotateY(fRotation[1] * TMath::DegToRad()); 
+            vHit.RotateZ(fRotation[2] * TMath::DegToRad());
+            vHit.SetX(vHit.X()+fCenter[0]); 
+            vHit.SetY(vHit.Y()+fCenter[1]); 
+            vHit.SetZ(vHit.Z()+fCenter[2]);
+            vHit.RotateY(fGEMAngle[0] * TMath::DegToRad()); 
+            vHit.RotateZ(fGEMAngle[1] * TMath::DegToRad()); 
+            hitTmp->posX=vHit.X();
+            hitTmp->posY=vHit.Y();
+            hitTmp->posZ=vHit.Z();
+
+            hitTmp->corrcoeff = corrcoeff_clust;
+            hitTmp->corrcoeff_deconv = corrcoeff_deconv;
+            hitTmp->corrcoeff_strip = corrcoeff_strip;
+            hitTmp->corrcoeff_strip_deconv = corrcoeff_strip_deconv;
+            fN2Dhits++;
           }
         } else {
           cout << "THcLADGEMModule::Find2DHits -- Warning: Max number of 2D hits exceeded" << endl;
@@ -3496,3 +3535,25 @@ Int_t THcLADGEMModule::End (THaRunBase* r) {
 //____________________________________________________________________________________
 
 void THcLADGEMModule::SetTriggerTime(Double_t ttrig) { fTrigTime = fabs(ttrig) < fMaxTrigTimeCorrection ? ttrig : 0.0; }
+
+//____________________________________________________________________________________
+Double_t THcLADGEMModule::GetAPVGain(Int_t apv_id, Int_t axis)  {
+  if (axis == LADGEM::kUaxis) {
+    if (apv_id >= 0 && UInt_t(apv_id) < fUgain.size()) {
+      return fUgain[apv_id];
+    } else {
+      Error(Here("GetAPVGain"), "Invalid APV position %d for U axis", apv_id);
+      return -1e10;
+    }
+  } else if (axis == LADGEM::kVaxis) {
+    if (apv_id >= 0 && UInt_t(apv_id) < fVgain.size()) {
+      return fVgain[apv_id];
+    } else {
+      Error(Here("GetAPVGain"), "Invalid APV position %d for V axis", apv_id);
+      return -1e10;
+    }
+  } else {
+    Error(Here("GetAPVGain"), "Invalid axis %d", axis);
+    return -2e10;
+  }
+}

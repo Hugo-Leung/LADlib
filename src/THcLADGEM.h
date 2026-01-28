@@ -17,6 +17,8 @@ struct ClusterOutputData {
   std::vector<Int_t> axis;
   std::vector<Int_t> nstrip;
   std::vector<Int_t> maxstrip;
+  std::vector<Int_t> striplo;
+  std::vector<Int_t> striphi;
   std::vector<Int_t> clindex;
   std::vector<Double_t> adc; // adc sum
   std::vector<Double_t> time;
@@ -24,6 +26,7 @@ struct ClusterOutputData {
   std::vector<Double_t> mpos;    // max strip pos
   std::vector<Double_t> maxsamp; // max time sample
   std::vector<Double_t> maxadc;  // max adc
+  std::vector<Double_t> apvGain; // apv gain correction factor
 
   void clear() {
     layer.clear();
@@ -32,6 +35,8 @@ struct ClusterOutputData {
     axis.clear();
     nstrip.clear();
     maxstrip.clear();
+    striplo.clear();
+    striphi.clear();
     clindex.clear();
     adc.clear();
     time.clear();
@@ -39,6 +44,7 @@ struct ClusterOutputData {
     mpos.clear();
     maxsamp.clear();
     maxadc.clear();
+    apvGain.clear();
   }
 };
 
@@ -119,6 +125,10 @@ protected:
   std::vector<Double_t> fADCAsym;
   std::vector<Double_t> fTimeDiff;
   std::vector<Double_t> fTimeCorr;
+  std::vector<Double_t> fCorrCoeff;
+  std::vector<Double_t> fCorrCoeff_Deconv;
+  std::vector<Double_t> fCorrCoeff_Strip;
+  std::vector<Double_t> fCorrCoeff_Strip_Deconv;
   std::vector<Int_t> fIsGoodHit;
   std::vector<Int_t> fClusID0;
   std::vector<Int_t> fClusID1;

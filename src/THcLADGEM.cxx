@@ -69,6 +69,10 @@ void THcLADGEM::Clear(Option_t *opt) {
   fClusID1.clear();
   fSPID.clear();
   fLayer.clear();
+  fCorrCoeff.clear();
+  fCorrCoeff_Deconv.clear();
+  fCorrCoeff_Strip.clear();
+  fCorrCoeff_Strip_Deconv.clear();
 }
 
 //____________________________________________________________
@@ -127,7 +131,9 @@ Int_t THcLADGEM::DefineVariables(EMode mode) {
                          {"clust.axis", "U/V axis", "fClusOutData.axis"},
                          {"clust.mpd", "MPD ID", "fClusOutData.mpdid"},
                          {"clust.nstrip", "Number of strips in cluster", "fClusOutData.nstrip"},
-                         {"clust.maxstrip", "Max strip of the given cluster", "fClusOutData.maxstrip"},
+                         {"clust.maxstrip", "index of the strip with max ADC of the given cluster", "fClusOutData.maxstrip"},
+                         {"clust.striplo", "index of the lowest strip in the cluster", "fClusOutData.striplo"},
+                         {"clust.striphi", "index of the highest strip in the cluster", "fClusOutData.striphi"},
                          {"clust.index", "Cluster index", "fClusOutData.clindex"},
                          {"clust.adc", "Cluster ADC sum", "fClusOutData.adc"},
                          {"clust.time", "Cluster Time mean", "fClusOutData.time"},
@@ -135,6 +141,7 @@ Int_t THcLADGEM::DefineVariables(EMode mode) {
                          {"clust.maxpos", "Max strip pos of the cluster", "fClusOutData.mpos"},
                          {"clust.maxsamp", "Time sample with max ADC", "fClusOutData.maxsamp"},
                          {"clust.maxadc", "Max strip ADC", "fClusOutData.maxadc"},
+                         {"clust.apvGain", "APV gain correction factor", "fClusOutData.apvGain"},
                          {0}};
 
   DefineVarsFromList(vars_clus, mode);
@@ -163,7 +170,11 @@ Int_t THcLADGEM::DefineVariables(EMode mode) {
                        {"sp.isgoodhit", "Good hit flag of GEM hit in layer 0", "fIsGoodHit"},
                        {"sp.clusID1", "Cluster ID1 of GEM hit in layer 0", "fClusID0"},
                        {"sp.clusID2", "Cluster ID2 of GEM hit in layer 0", "fClusID1"},
-                       {"sp.spID", "Track ID of GEM hit in layer 0", "fSPID"},
+                       {"sp.corrcoeff", "Correlation Coefficient of GEM hit in layer 0", "fCorrCoeff"},
+                       {"sp.corrcoeff_deconv", "Deconvoluted Correlation Coefficient of GEM hit in layer 0", "fCorrCoeff_Deconv"},
+                       {"sp.corrcoeff_strip", "Strip Correlation Coefficient of GEM hit in layer 0", "fCorrCoeff_Strip"},
+                       {"sp.corrcoeff_strip_deconv", "Strip Deconvoluted Correlation Coefficient of GEM hit in layer 0", "fCorrCoeff_Strip_Deconv"},
+                       {"sp.spID", "SP ID of GEM hit in layer 0", "fSPID"},
                        {"sp.layer", "2D hit layer", "fLayer"},
                        {0}};
   DefineVarsFromList(vars_sp, mode);
@@ -194,10 +205,12 @@ Int_t THcLADGEM::DefineVariables(EMode mode) {
     RVarDef vars_trk[] = {
         {"trk.ntracks", "Number of GEM track candidates", "fNTracks"},
         {"trk.id", "GEM Track ID", "fGEMTracks.THcLADGEMTrack.GetTrackID()"},
-        {"trk.spID_0u", "Space Point ID for Layer 0 U", "fGEMTracks.THcLADGEMTrack.GetSpacePointID_0U()"},
-        {"trk.spID_0v", "Space Point ID for Layer 0 V", "fGEMTracks.THcLADGEMTrack.GetSpacePointID_0V()"},
-        {"trk.spID_1u", "Space Point ID for Layer 1 U", "fGEMTracks.THcLADGEMTrack.GetSpacePointID_1U()"},
-        {"trk.spID_1v", "Space Point ID for Layer 1 V", "fGEMTracks.THcLADGEMTrack.GetSpacePointID_1V()"},
+        {"trk.spID_0", "Space Point ID for Layer 0 ", "fGEMTracks.THcLADGEMTrack.GetSpID_0()"},
+        {"trk.spID_1", "Space Point ID for Layer 1 ", "fGEMTracks.THcLADGEMTrack.GetSpID_1()"},
+        {"trk.spID_0u", "Cluster ID for Layer 0 U", "fGEMTracks.THcLADGEMTrack.GetSpacePointID_0U()"},
+        {"trk.spID_0v", "Cluster ID for Layer 0 V", "fGEMTracks.THcLADGEMTrack.GetSpacePointID_0V()"},
+        {"trk.spID_1u", "Cluster ID for Layer 1 U", "fGEMTracks.THcLADGEMTrack.GetSpacePointID_1U()"},
+        {"trk.spID_1v", "Cluster ID for Layer 1 V", "fGEMTracks.THcLADGEMTrack.GetSpacePointID_1V()"},
         {"trk.adc1", "2D hit ADC mean for 1st layer", "fGEMTracks.THcLADGEMTrack.GetADCMean_Sp1()"},
         {"trk.adc2", "2D hit ADC mean for 2nd layer", "fGEMTracks.THcLADGEMTrack.GetADCMean_Sp2()"},
         {"trk.asy1", "2D hit ADC asym for 1st layer", "fGEMTracks.THcLADGEMTrack.GetADCasym_Sp1()"},
@@ -341,6 +354,8 @@ Int_t THcLADGEM::CoarseProcess(TClonesArray &tracks) {
         fClusOutData.axis.push_back(cluster.GetAxis());
         fClusOutData.nstrip.push_back(cluster.GetNStrips());
         fClusOutData.maxstrip.push_back(cluster.GetStripMax());
+        fClusOutData.striplo.push_back(cluster.GetStripLow());
+        fClusOutData.striphi.push_back(cluster.GetStripHigh());
         fClusOutData.clindex.push_back(cluster.GetCLIndex());
         fClusOutData.adc.push_back(cluster.GetADCsum());
         fClusOutData.time.push_back(cluster.GetTime());
@@ -348,6 +363,7 @@ Int_t THcLADGEM::CoarseProcess(TClonesArray &tracks) {
         fClusOutData.mpos.push_back(cluster.GetPosMax());
         fClusOutData.maxsamp.push_back(cluster.GetSampMax());
         fClusOutData.maxadc.push_back(cluster.GetADCMax());
+        fClusOutData.apvGain.push_back(module->GetAPVGain(cluster.GetStripMax()/128, cluster.GetAxis()));//FIXME: Assumes 128 strips per APV, should get from module
         fNClusters++;
       }
     }
@@ -376,6 +392,10 @@ Int_t THcLADGEM::CoarseProcess(TClonesArray &tracks) {
   fClusID1.reserve(nhits);
   fSPID.reserve(nhits);
   fLayer.reserve(nhits);
+  fCorrCoeff.reserve(nhits);
+  fCorrCoeff_Deconv .reserve(nhits);
+  fCorrCoeff_Strip .reserve(nhits);
+  fCorrCoeff_Strip_Deconv .reserve(nhits);
 
   for (int layer = 0; layer < fNLayers; ++layer) {
     for (const auto &hit : f2DHits[layer]) {
@@ -390,6 +410,10 @@ Int_t THcLADGEM::CoarseProcess(TClonesArray &tracks) {
       fIsGoodHit.push_back(hit.IsGoodHit);
       fClusID0.push_back(hit.clusID[0]);
       fClusID1.push_back(hit.clusID[1]);
+      fCorrCoeff.push_back(hit.corrcoeff);
+      fCorrCoeff_Deconv.push_back(hit.corrcoeff_deconv);
+      fCorrCoeff_Strip.push_back(hit.corrcoeff_strip);
+      fCorrCoeff_Strip_Deconv.push_back(hit.corrcoeff_strip_deconv);
       fSPID.push_back(hit.spID);
       fLayer.push_back(layer);
     }
@@ -472,8 +496,8 @@ Int_t THcLADGEM::CoarseProcess(TClonesArray &tracks) {
         vpy = -v_hit1[0] * (v_hit2[1] - v_hit1[1]) / (v_hit2[0] - v_hit1[0]) + v_hit1[1];
       }
 
-      gemhit1.spID = fNTracks;
-      gemhit2.spID = fNTracks;
+      gemhit1.trackID = fNTracks;
+      gemhit2.trackID = fNTracks;
 
       if (fNTracks < MAXTRACKS) {
         // Add track object
@@ -491,7 +515,7 @@ Int_t THcLADGEM::CoarseProcess(TClonesArray &tracks) {
     }
     gemhit1_id++;
   }
-
+  
   return 0;
 }
 //____________________________________________________________

@@ -28,11 +28,21 @@ class THcLADGEMCluster : public TObject {
   Double_t GetADCMax()   { return fADCMax; }
   Double_t GetPos()      { return fPos; }
   Double_t GetPosMax()   { return fPosMax; }
+  Double_t GetPosSigma() { return fPosSigma; }
   Double_t GetMoments()  { return fMoments; }
   Double_t GetPosDiff()  { return fPosDiff; }
   Double_t GetE()        { return fE; }
   Double_t GetTime()     { return fTime; }
   Double_t GetTimeFit()  { return fTimeFit; }
+  Double_t GetTDeconv()  { return fTDeconv; }
+  Double_t GetADCsumDeconv() { return fADCsumDeconv; }
+  Double_t GetADCsumDeconvMaxCombo() { return fADCsumDeconvMaxCombo; }
+  const std::vector<Double_t>& GetStripADCsum() { return stripADCsum; }
+  const std::vector<Double_t>& GetDeconvADCsum() { return DeconvADCsum; }
+  const std::vector<Double_t>& GetADCsamples() { return ADCsamples; }
+  const std::vector<Double_t>& GetDeconvADCsamples() { return DeconvADCsamples; }
+  Int_t    GetSampMaxDeconv()  { return fSampMaxDeconv; }
+  Int_t    GetComboMaxDeconv()  { return fComboMaxDeconv; }
   Int_t    GetSampMax()  { return fSampMax; }
 
   Double_t GetMPD() { return fMPD; }
@@ -40,6 +50,8 @@ class THcLADGEMCluster : public TObject {
   Double_t GetLayer() { return fLayer; }
   Double_t GetAxis() { return fAxis; }
   Int_t    GetCLIndex() { return fCLIndex; }
+  std::vector<UInt_t> GetHitIndex() { return hitindex; }
+  Int_t    GetRawStrip() { return rawstrip; }
 
   void SetMode(int this_value) { fClusteringFlag = this_value; }
   void SetNStrips(int this_value) { fNStrips = this_value; }
@@ -57,16 +69,28 @@ class THcLADGEMCluster : public TObject {
   void SetTime(double this_value) { fTime = this_value; }
   void SetTimeFit(double this_value) { fTimeFit = this_value; }
   void SetTime(double value1, double value2) { fTime = value1; fTSigma = value2; }
+  void SetTimeDeconv(double this_value) { fTDeconv = this_value; }
   void SetADCsum(double this_value) { fADCsum = this_value; }
   void SetADCMax(double this_value) { fADCMax = this_value; }
   void SetSampMax(int this_value) { fSampMax = this_value; }
+  void SetSampMaxDeconv(int this_value) { fSampMaxDeconv = this_value; }
+  void SetComboMaxDeconv(int this_value) { fComboMaxDeconv = this_value; }
+  void SetADCsamples( const std::vector<Double_t> &samples ) { ADCsamples = samples; }
+  void SetDeconvADCsamples( const std::vector<Double_t> &samples ) { DeconvADCsamples = samples; }
+  void SetADCsumDeconv( double this_value ) { fADCsumDeconv = this_value; }
+  void SetADCsumDeconvMaxCombo( double this_value ) { fADCsumDeconvMaxCombo = this_value; }
 
   void SetLayer(int this_value ) { fLayer = this_value; }
   void SetMPD(int this_value ) { fMPD = this_value; }
   void SetAPV(int this_value ) { fAPV = this_value; }
   void SetAxis(int this_value) { fAxis = this_value; }
   void SetCLIndex(int this_value) { fCLIndex = this_value; }
-
+  void SetHitIndex( const std::vector<UInt_t> &indices ) { hitindex = indices; }
+  void SetRawStrip(int this_value) { rawstrip = this_value; }
+  void SetStripADCsum( const std::vector<Double_t> &adc_sums ) { stripADCsum = adc_sums; }
+  void AddStripADCsum( Double_t adc_sum ) { stripADCsum.push_back( adc_sum ); }
+  void SetDeconvADCsum( const std::vector<Double_t> &adc_sums ) { DeconvADCsum = adc_sums; }  
+  void AddDeconvADCsum( Double_t adc_sum ) { DeconvADCsum.push_back( adc_sum ); }
  protected:
 
   Int_t    fClusteringFlag;
@@ -88,16 +112,31 @@ class THcLADGEMCluster : public TObject {
   Double_t fPosSigma; // RMS coordinate deviation from the mean 
   Double_t fMoments;      // clustermoments
   Int_t    fSampMax; // time sample in which peak of cluster summed ADC values occurs
+  Int_t    fSampMaxDeconv; //time sample in which the deconvoluted cluster-summed ADC samples peaks.
+  Int_t    fComboMaxDeconv; //2nd time sample of max two-sample combo for cluster-summed deconvoluted ADC samples
+  std::vector<Double_t> ADCsamples; //cluster-summed ADC samples (accounting for split fraction)
+  std::vector<Double_t> DeconvADCsamples; //cluster-summed deconvoluted ADC samples (accounting for split fraction)
+
   Double_t fADCsum;
   Double_t fADCMax;
+  Double_t fADCsumDeconv; //sum of all deconvoluted ADC samples over all strips in the cluster
+  Double_t fADCsumDeconvMaxCombo; //sum over all strips in the cluster of max two-sample combo
+  std::vector<Double_t> stripADCsum; //Sum of individual strip ADCs over all samples on all strips; accounting for split fraction
+  std::vector<Double_t> DeconvADCsum; //Sum of individual deconvoluted ADC samples over all samples on all strips; accounting for split fraction
 
   Int_t    fNHits;
   Double_t fE;
   Double_t fTime;   // mean time
   Double_t fTSigma; 
   Double_t fTimeFit;
+  Double_t fTDeconv; //cluster-summed mean deconvoluted hit time.
 
   //  std::vector<THcLADGEMHit*> fHits;
+  std::vector<UInt_t> hitindex; //position in decoded hit array of each strip in the cluster:
+  Int_t rawstrip; //Raw APV strip number before decoding 
+  Int_t rawMPD; //Raw MPD number before decoding 
+  Int_t rawAPV; //Raw APV number before decoding 
+
 
   ClassDef(THcLADGEMCluster,0)
 };
