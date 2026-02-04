@@ -8,7 +8,7 @@ public:
   THcGoodLADHit() {
     for (int i = 0; i < 2; ++i) {
       plane[i] = paddle[i] = track_id[i] = -1;
-      hit_tof[i] = dTrk_horiz[i] = dTrk_vert[i] = hit_time[i] = hit_theta[i] = hit_phi[i] = hit_edep[i] =
+      hit_tof[i] = hit_tof_rfcorr[i] = dTrk_horiz[i] = dTrk_vert[i] = hit_time[i] = hit_theta[i] = hit_phi[i] = hit_edep[i] =
           hit_edep_amp[i] = hit_yPos[i] = hit_alpha[i] = hit_beta[i] = 1e30;
     }
   };
@@ -72,6 +72,10 @@ public:
     CheckHitIndex(hit);
     hit_tof[hit] = value;
   }
+  void SetHitTOFRFcorr(Int_t hit, Double_t value) {
+    CheckHitIndex(hit);
+    hit_tof_rfcorr[hit] = value;
+  }
 
   void SetHitBeta(Int_t hit, Double_t value) {
     CheckHitIndex(hit);
@@ -93,6 +97,7 @@ public:
       SetHitAlpha(this_plane, copyhit->GetHitAlphaHit0());
       SetHitYPos(this_plane, copyhit->GetHitYPosHit0());
       SetHitTOF(this_plane, copyhit->GetHitTOFHit0());
+      SetHitTOFRFcorr(this_plane, copyhit->GetHitTOFRFcorrHit0());
     } else if (copy_plane == 1) {
       SetPlane(this_plane, copyhit->GetPlaneHit1());
       SetPaddle(this_plane, copyhit->GetPaddleHit1());
@@ -107,6 +112,7 @@ public:
       SetHitAlpha(this_plane, copyhit->GetHitAlphaHit1());
       SetHitYPos(this_plane, copyhit->GetHitYPosHit1());
       SetHitTOF(this_plane, copyhit->GetHitTOFHit1());
+      SetHitTOFRFcorr(this_plane, copyhit->GetHitTOFRFcorrHit1());
     } else {
       throw std::out_of_range("Invalid copy_plane index. Must be 0 or 1.");
     }
@@ -157,6 +163,9 @@ public:
   Double_t GetHitTOFHit0() const { return hit_tof[0]; }
   Double_t GetHitTOFHit1() const { return hit_tof[1]; }
 
+  Double_t GetHitTOFRFcorrHit0() const { return hit_tof_rfcorr[0]; }
+  Double_t GetHitTOFRFcorrHit1() const { return hit_tof_rfcorr[1]; }
+
 protected:
   Int_t plane[2];
   Int_t paddle[2];
@@ -170,6 +179,7 @@ protected:
   Double_t hit_edep[2];
   Double_t hit_edep_amp[2];
   Double_t hit_tof[2];
+  Double_t hit_tof_rfcorr[2];
   Double_t hit_yPos[2];
   Double_t hit_alpha[2];
 

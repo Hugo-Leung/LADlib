@@ -348,10 +348,10 @@ Int_t THcLADHodoscope::ReadDatabase(const TDatime &date) {
   DBRequest list[] = {{"ladhodo_vel_light", &fHodoVelLight[0], kDouble, (UInt_t)fMaxHodoScin, 1}, {0}};
   gHcParms->LoadParmValues((DBRequest *)&list, prefix_lad);
 
-  DBRequest list4[] = {// {"ladhodo_velFit", &fHodoVelFit[0], kDouble, (UInt_t)fMaxHodoScin, 1},
+  DBRequest list4[] = {{"ladhodo_velFit", &fHodoVelFit[0], kDouble, (UInt_t)fMaxHodoScin, 1},
                        {"ladhodo_cableFit", &fHodoCableFit[0], kDouble, (UInt_t)fMaxHodoScin, 1},
                        {"ladhodo_LCoeff", &fHodo_LCoeff[0], kDouble, (UInt_t)fMaxHodoScin, 1},
-                       // {"ladhodo_velFit_FADC", &fHodoVelFit_FADC[0], kDouble, (UInt_t)fMaxHodoScin, 1},
+                       {"ladhodo_velFit_FADC", &fHodoVelFit_FADC[0], kDouble, (UInt_t)fMaxHodoScin, 1},
                        {"ladhodo_cableFit_FADC", &fHodoCableFit_FADC[0], kDouble, (UInt_t)fMaxHodoScin, 1},
                        {"ladhodo_LCoeff_FADC", &fHodo_LCoeff_FADC[0], kDouble, (UInt_t)fMaxHodoScin, 1},
                        {"ladhodo_c1_Top", &fHodoTop_c1[0], kDouble, (UInt_t)fMaxHodoScin, 1},

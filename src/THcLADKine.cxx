@@ -18,9 +18,14 @@ ClassImp(THcLADKine)
     : THcPrimaryKine(name, description, spectro, primary_kine, 0.938), fSpecName(spectro), fGEM(nullptr),
       fHodoscope(nullptr), fVertexModuleName(vertex_module), fVertexModule(nullptr), fTrack(nullptr) {
   // Constructor
-  fGoodLADHits = new TClonesArray("THcGoodLADHit", MAXGOODHITS);
-  goodhit_n    = 0;
-  fFixed_z     = nullptr;
+  fGoodLADHits    = new TClonesArray("THcGoodLADHit", MAXGOODHITS);
+  goodhit_n       = 0;
+  fTVertex        = kBig;
+  fRFTime         = kBig;
+  fTVertex_RFcorr = kBig;
+  fFixed_z        = nullptr;
+  rf_offset[0]    = 0.0;
+  rf_offset[1]    = 0.0;
 }
 //_____________________________________________________________________________
 THcLADKine::~THcLADKine() {
@@ -125,6 +130,7 @@ Int_t THcLADKine::ReadDatabase(const TDatime &date) {
                       {"nfixed_z", &fNfixed_z, kInt, 0, 1},
                       {"global_time_offset", &fglobal_time_offset, kDouble, 0, 1},
                       {"trk_dt_cut", &fTrk_dtCut, kDouble, 0, 1},
+                      {"_rf_offset", rf_offset, kDouble, 2},
                       {0}};
   gHcParms->LoadParmValues((DBRequest *)&list, prefix);
 
@@ -336,15 +342,19 @@ Int_t THcLADKine::Process(const THaEvData &evdata) {
     if (goodhit == nullptr)
       continue;
 
-    Double_t tof, beta, alpha;
+    Double_t tof, tof_rfcorr, beta, alpha;
     if (goodhit->GetPlaneHit0() >= 0 && goodhit->GetPlaneHit0() < 999) {
       tof = CalculateToF(goodhit->GetHitTimeHit0());
       goodhit->SetHitTOF(0, tof);
+      tof_rfcorr = CalculateTOFRFcorr(goodhit->GetHitTimeHit0());
+      goodhit->SetHitTOFRFcorr(0, tof_rfcorr);
       // Calculate beta, alpha, etc. for the first plane
     }
     if (goodhit->GetPlaneHit1() >= 0 && goodhit->GetPlaneHit1() < 999) {
       tof = CalculateToF(goodhit->GetHitTimeHit1());
       goodhit->SetHitTOF(1, tof);
+      tof_rfcorr = CalculateTOFRFcorr(goodhit->GetHitTimeHit1());
+      goodhit->SetHitTOFRFcorr(1, tof_rfcorr);
       // Calculate beta, alpha, etc. for the second plane
     }
   }
@@ -369,6 +379,11 @@ Int_t THcLADKine::Process(const THaEvData &evdata) {
       Double_t tof_top = CalculateToF(hit->GetTopCorrectedTime());
       Double_t tof_btm = CalculateToF(hit->GetBtmCorrectedTime());
       hit->SetTOFCorrectedTimes(tof_top, tof_btm, tof_avg);
+
+       tof_avg = CalculateTOFRFcorr(hit->GetScinCorrectedTime());
+       tof_top = CalculateTOFRFcorr(hit->GetTopCorrectedTime());
+       tof_btm = CalculateTOFRFcorr(hit->GetBtmCorrectedTime());
+       hit->SetTOF_RF_CorrectedTimes(tof_top, tof_btm, tof_avg);
     }
   }
 
@@ -424,12 +439,25 @@ void THcLADKine::CalculateTVertex() {
 
   fTVertex = fPtime - PathLengthCorr;
 
+  int fRFTimeIndex = (aparatus_prefix[0] == 'p') ? 0 : 1;
+  fRFTime          = fTrigDet->Get_RF_TrigTime(fRFTimeIndex) + rf_offset[fRFTimeIndex];
+  double tmp       = fmod(fTVertex - fRFTime, 4);
+  if (tmp > 2)
+    tmp -= 4;
+  fTVertex_RFcorr = fTVertex - tmp;
+
   return;
 }
 //_____________________________________________________________________________
 Double_t THcLADKine::CalculateToF(Double_t t_raw) {
 
   Double_t tof = t_raw - fTVertex + fglobal_time_offset;
+
+  return tof;
+}
+Double_t THcLADKine::CalculateTOFRFcorr(Double_t t_raw) {
+
+  Double_t tof = t_raw - fTVertex_RFcorr + fglobal_time_offset;
 
   return tof;
 }
@@ -442,6 +470,8 @@ Int_t THcLADKine::DefineVariables(EMode mode) {
   // Define variables for the analysis tree
   if (mode == kDefine) {
     RVarDef vars[] = {
+        {"t_vertex", "Calculated vertex time", "fTVertex"},
+        {"t_vertex_RFcorr", "Calculated vertex time (RF corrected)", "fTVertex_RFcorr"},
         {"n_goodhits", "Number of good hits", "goodhit_n"},
         {"goodhit_plane_0", "Good hit plane", "fGoodLADHits.THcGoodLADHit.GetPlaneHit0()"},
         {"goodhit_paddle_0", "Good hit paddle", "fGoodLADHits.THcGoodLADHit.GetPaddleHit0()"},

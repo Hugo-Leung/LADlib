@@ -42,4 +42,11 @@ void THcLADHodoHit::SetTOFCorrectedTimes(Double_t top, Double_t btm, Double_t ti
   fHasCorrectedTimes = kTRUE;
 }
 
+void THcLADHodoHit::SetTOF_RF_CorrectedTimes(Double_t top, Double_t btm, Double_t timeave) {
+  fTopTOF_RF_CorrectedTime = top;
+  fBtmTOF_RF_CorrectedTime = btm;
+  fScinTOF_RF_CorrectedTime = timeave;
+  fHasCorrectedTimes = kTRUE;
+}
+
 ClassImp(THcLADHodoHit)
