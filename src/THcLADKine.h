@@ -51,9 +51,13 @@ protected:
   Double_t *fFixed_z;
   Double_t fglobal_time_offset;
   Double_t fTVertex;
+  Double_t fRFTime;
+  Double_t fTVertex_RFcorr;
+  Double_t rf_offset[2];
   virtual Int_t DefineVariables(EMode mode = kDefine);
   void CalculateTVertex();
   Double_t CalculateToF(Double_t t_raw);
+  Double_t CalculateTOFRFcorr(Double_t t_raw);
 
   ClassDef(THcLADKine, 0)
 };

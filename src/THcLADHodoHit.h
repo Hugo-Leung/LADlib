@@ -37,6 +37,9 @@ public:
   Double_t GetTopTOFCorrectedTime() const { return fTopTOFCorrectedTime; }
   Double_t GetBtmTOFCorrectedTime() const { return fBtmTOFCorrectedTime; }
   Double_t GetScinTOFCorrectedTime() const { return fScinTOFCorrectedTime; }
+  Double_t GetTopTOF_RF_CorrectedTime() const { return fTopTOF_RF_CorrectedTime; }
+  Double_t GetBtmTOF_RF_CorrectedTime() const { return fBtmTOF_RF_CorrectedTime; }
+  Double_t GetScinTOF_RF_CorrectedTime() const { return fScinTOF_RF_CorrectedTime; }
 
   void SetPaddleCenter(Double_t padcenter) { fPaddleCenter = padcenter; }
   void SetTopADCpeak(Double_t adc) { fTopADC_Peak = adc; }
@@ -52,6 +55,7 @@ public:
   void SetCorrectedTimes_FADC(Double_t top, Double_t btm);
   void SetCorrectedTimes_FADC(Double_t top, Double_t btm, Double_t timeave);
   void SetTOFCorrectedTimes(Double_t top, Double_t btm, Double_t timeave);
+  void SetTOF_RF_CorrectedTimes(Double_t top, Double_t btm, Double_t timeave);
 
 protected:
   Int_t fTopTDC;
@@ -79,6 +83,11 @@ protected:
   Double_t fBtmTOFCorrectedTime;  // using nominal beta
   Double_t fScinTOFCorrectedTime; // Times corrected for z position
                                   // using nominal beta
+
+  Double_t fTopTOF_RF_CorrectedTime;  // Times corrected for z position
+  Double_t fBtmTOF_RF_CorrectedTime;  // using nominal beta
+  Double_t fScinTOF_RF_CorrectedTime; // Times corrected for z position
+                                     // using nominal beta
 
   Bool_t fHasCorrectedTimes;
   Bool_t fTwoGoodTimes;

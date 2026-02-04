@@ -1569,8 +1569,8 @@ Int_t THcLADHodoPlane::ProcessHits(TClonesArray *rawhits, Int_t nexthit) {
           fGoodDiffDistTrack.at(index) = fHitDistCorr;
           fGoodHitTimeDiff.at(index)   = TWCorrDiff;
 
-          Double_t vellight = fHodoVelLight[index]; // read from hodo_cuts.param, where it is set fixed to 15.0
-
+          // Double_t vellight = fHodoVelLight[index]; // read from hodo_cuts.param, (no longer fixed to 15.0)
+          Double_t vellight = fHodoVelFit[index]; // read from hodo_cuts.param, (no longer fixed to 15.0)
           Double_t dist_from_center = 0.5 * (timec_btm - timec_top) * vellight;
           Double_t scint_center     = 0.5 * (fPosBtm[padnum - 1] + fPosTop[padnum - 1]);
           Double_t hit_position     = scint_center + dist_from_center;
