@@ -149,16 +149,7 @@ Int_t THcLADKine::ReadDatabase(const TDatime &date) {
   fglobal_time_offset   = 0.0;
   fTrk_dtCut            = 10.0;
 
-  // delete[] rf_offset;
-  rf_offset = new Double_t[2]; // shouldn't be length 2 FIXME
-
   cout << "Reading LAD Kinematics parameters from database..." << endl;
-  THaVar *varptr;
-  varptr = gHcParms->Find("gen_run_number");
-  Int_t *runnum;
-  if (varptr) {
-    runnum = (Int_t *)varptr->GetValuePointer(); // Assume correct type
-  }
 
   DBRequest list[] = {{"d0_cut_wVertex", &fD0Cut_wVertex, kDouble, 0, 1},
                       {"d0_cut_noVertex", &fD0Cut_noVertex, kDouble, 0, 1},
@@ -167,26 +158,18 @@ Int_t THcLADKine::ReadDatabase(const TDatime &date) {
                       {"nfixed_z", &fNfixed_z, kInt, 0, 1},
                       {"global_time_offset", &fglobal_time_offset, kDouble, 0, 1},
                       {"trk_dt_cut", &fTrk_dtCut, kDouble, 0, 1},
-                      // {"_rf_offset", rf_offset, kDouble, 2},
                       {"_rf_period", &rf_period, kDouble, 0, 1},
                       {0}};
   gHcParms->LoadParmValues((DBRequest *)&list, prefix);
 
-  DBRequest list_rf[] = {{"l_nr_rf_offsets", &n_rf_offsets, kInt, 0, 1}, {0}};
+  DBRequest list_rf[] = {{"_nr_rf_offsets", &n_rf_offsets, kInt, 0, 1}, {0}};
   gHcParms->LoadParmValues((DBRequest *)&list_rf, prefix);
-  rf_offset = new Double_t[n_rf_offsets];
-  for (Int_t i = 0; i < n_rf_offsets; i++) {
+  rf_offset = new Double_t[n_rf_offsets * 3];
+  for (Int_t i = 0; i < n_rf_offsets * 3; i++) {
     rf_offset[i] = 0.0;
   }
-  DBRequest list_rf_offsets[] = {{"_rf_offset", rf_offset, kDouble, n_rf_offsets}, {0}};
+  DBRequest list_rf_offsets[] = {{"_rf_offset", &rf_offset[0], kDouble, (UInt_t)(n_rf_offsets * 3)}, {0}};
   gHcParms->LoadParmValues((DBRequest *)&list_rf_offsets, prefix);
-
-  gHcParms->LoadParmValues((DBRequest *)&list_rf, prefix);
-
-  // else {
-  //   runnum = new Int_t[1];
-  //   gHcParms->Define("gen_run_number","Run Number", *runnum);
-  // }
 
   delete[] fFixed_z;
   if (fNfixed_z > 0) {
@@ -500,12 +483,30 @@ void THcLADKine::CalculateTVertex() {
 
   fTVertex = fPtime - PathLengthCorr;
 
-  int fRFTimeIndex = (aparatus_prefix[0] == 'p') ? 0 : 1;
-  fRFTime          = fTrigDet->Get_RF_TrigTime(fRFTimeIndex) + rf_offset[fRFTimeIndex];
-  double tmp       = fmod(fTVertex - fRFTime, rf_period);
+  THaVar *varptr;
+  varptr = gHcParms->Find("gen_run_number");
+  Int_t *runnum;
+  if (varptr) {
+    runnum = (Int_t *)varptr->GetValuePointer(); // Assume correct type
+  }
+  int fRFTimeIndex = -1;
+  int run_idx      = 0;
+  while (fRFTimeIndex < 0) {
+    if (run_idx >= 3 * n_rf_offsets || rf_offset[run_idx] > *runnum) {
+      fRFTimeIndex = run_idx - 3;
+    }
+    run_idx += 3;
+  }
+  fRFTimeIndex += (aparatus_prefix[0] == 'p' ? 1 : 2);
+  // (aparatus_prefix[0] == 'p') ? 0 : 1;
+
+  fRFTime    = fTrigDet->Get_RF_TrigTime(fRFTimeIndex) + rf_offset[fRFTimeIndex];
+  double tmp = fmod(fTVertex - fRFTime, rf_period);
   if (tmp > 2)
     tmp -= rf_period;
   fTVertex_RFcorr = fTVertex - tmp;
+  cout << "Run: " << *runnum << ", RF time: " << fRFTime << ", Vertex time (uncorrected): " << fTVertex
+       << ", Vertex time (RF corrected): " << fTVertex_RFcorr << endl;
 
   return;
 }

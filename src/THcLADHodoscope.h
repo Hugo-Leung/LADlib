@@ -5,12 +5,12 @@
 #include "TH1F.h"
 #include "THaNonTrackingDetector.h"
 #include "THaSpectrometer.h"
+#include "THcGoodLADHit.h"
 #include "THcHitList.h"
 #include "THcLADGEM.h"
 #include "THcLADHodoHit.h"
 #include "THcLADHodoPlane.h"
 #include "THcRawHodoHit.h"
-#include "THcGoodLADHit.h"
 
 class THcLADHodoscope : public THaNonTrackingDetector, public THcHitList {
 public:
@@ -77,8 +77,9 @@ protected:
   Double_t *fAdcTdcOffset;
   Double_t *fHodoSlop;
   Int_t fIsMC;
-  Double_t fTrackToleranceVert;
-  Double_t fTrackToleranceHoriz;
+  Int_t fMatchingPaddleTol;
+  Double_t fMatchingTimeTol;
+  Double_t fMatchingDyTol;
 
   // Output variables
   static const Int_t MAXGOODHITS = 500;
@@ -91,8 +92,7 @@ protected:
   THaApparatus *fSpectro;
   THcLADGEM *fGEM;
 
-
-  Int_t *fNScinHits;       // [fNPlanes]
+  Int_t *fNScinHits; // [fNPlanes]
 
   // Time walk
   Double_t *fHodoVelFit;

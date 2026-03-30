@@ -229,20 +229,18 @@ Int_t THcLADHodoscope::DefineVariables(EMode mode) {
       {"goodhit_hitedep_0", "Good hit energy deposition", "fGoodLADHits.THcGoodLADHit.GetHitEdepHit0()"},
       {"goodhit_hitedep_amp_0", "Good hit energy deposition (amplitude)",
        "fGoodLADHits.THcGoodLADHit.GetHitEdepAmpHit0()"},
-      // Plane 1 not used at this stage. All hits are in plane 0, until matching can occur in THcLADKine
-      // {"goodhit_plane_1", "Good hit plane (second plane)", "fGoodLADHits.THcGoodLADHit.GetPlaneHit1()"},
-      // {"goodhit_paddle_1", "Good hit paddle (second plane)", "fGoodLADHits.THcGoodLADHit.GetPaddleHit1()"},
-      // {"goodhit_trackid_1", "Good hit track ID (second plane)", "fGoodLADHits.THcGoodLADHit.GetTrackIDHit1()"},
-      // {"goodhit_beta_1", "Good hit beta (second plane)", "fGoodLADHits.THcGoodLADHit.GetBetaHit1()"},
-      // {"goodhit_dTrkHoriz_1", "Good hit horizontal trk proj - hit position (second plane)",
-      //  "fGoodLADHits.THcGoodLADHit.GetdTrkHorizHit1()"},
-      // {"goodhit_dTrkVert_1", "Good hit vertical trk proj - hit position (second plane)",
-      //  "fGoodLADHits.THcGoodLADHit.GetdTrkVertHit1()"},
-      // {"goodhit_hittime_1", "Good hit time (second plane)", "fGoodLADHits.THcGoodLADHit.GetHitTimeHit1()"},
-      // {"goodhit_hittheta_1", "Good hit theta (second plane)", "fGoodLADHits.THcGoodLADHit.GetHitThetaHit1()"},
-      // {"goodhit_hitphi_1", "Good hit phi (second plane)", "fGoodLADHits.THcGoodLADHit.GetHitPhiHit1()"},
-      // {"goodhit_hitedep_1", "Good hit energy deposition (second plane)",
-      // "fGoodLADHits.THcGoodLADHit.GetHitEdepHit1()"},
+      {"goodhit_plane_1", "Good hit plane (second plane)", "fGoodLADHits.THcGoodLADHit.GetPlaneHit1()"},
+      {"goodhit_paddle_1", "Good hit paddle (second plane)", "fGoodLADHits.THcGoodLADHit.GetPaddleHit1()"},
+      {"goodhit_trackid_1", "Good hit track ID (second plane)", "fGoodLADHits.THcGoodLADHit.GetTrackIDHit1()"},
+      {"goodhit_beta_1", "Good hit beta (second plane)", "fGoodLADHits.THcGoodLADHit.GetBetaHit1()"},
+      {"goodhit_dTrkHoriz_1", "Good hit horizontal trk proj - hit position (second plane)",
+       "fGoodLADHits.THcGoodLADHit.GetdTrkHorizHit1()"},
+      {"goodhit_dTrkVert_1", "Good hit vertical trk proj - hit position (second plane)",
+       "fGoodLADHits.THcGoodLADHit.GetdTrkVertHit1()"},
+      {"goodhit_hittime_1", "Good hit time (second plane)", "fGoodLADHits.THcGoodLADHit.GetHitTimeHit1()"},
+      {"goodhit_hittheta_1", "Good hit theta (second plane)", "fGoodLADHits.THcGoodLADHit.GetHitThetaHit1()"},
+      {"goodhit_hitphi_1", "Good hit phi (second plane)", "fGoodLADHits.THcGoodLADHit.GetHitPhiHit1()"},
+      {"goodhit_hitedep_1", "Good hit energy deposition (second plane)", "fGoodLADHits.THcGoodLADHit.GetHitEdepHit1()"},
       {"good_hit_n_unique", "Number of unique good hits", "num_unique_good_hits"},
       {"all_hits_n_unique", "Number of all hits, not just with tracks", "num_unique_hits"},
       {0}};
@@ -315,24 +313,25 @@ Int_t THcLADHodoscope::ReadDatabase(const TDatime &date) {
     fEdep2MeV_amp[ii]            = 1.0; // Default value
   }
 
-  DBRequest list3[] = {{"ladcosmicflag", &fCosmicFlag, kInt, 0, 1},
-                       {"ladhodo_tdc_min", &fScinTdcMin, kDouble},
-                       {"ladhodo_tdc_max", &fScinTdcMax, kDouble},
-                       {"ladhodo_tdc_to_time", &fScinTdcToTime, kDouble},
-                       {"ladhodo_TopAdcTimeWindowMin", fHodoTopAdcTimeWindowMin, kDouble, (UInt_t)fMaxHodoScin, 1},
-                       {"ladhodo_TopAdcTimeWindowMax", fHodoTopAdcTimeWindowMax, kDouble, (UInt_t)fMaxHodoScin, 1},
-                       {"ladhodo_BtmAdcTimeWindowMin", fHodoBtmAdcTimeWindowMin, kDouble, (UInt_t)fMaxHodoScin, 1},
-                       {"ladhodo_BtmAdcTimeWindowMax", fHodoBtmAdcTimeWindowMax, kDouble, (UInt_t)fMaxHodoScin, 1},
-                       {"ladhodo_track_tolerance_vert", &fTrackToleranceVert, kDouble},
-                       {"ladhodo_track_tolerance_horiz", &fTrackToleranceHoriz, kDouble},
-                       {0}};
-
-  fTrackToleranceVert  = 0.0;
-  fTrackToleranceHoriz = 0.0;
-  fCosmicFlag          = 0;
-  fScinTdcMin          = 0;
-  fScinTdcMax          = 0;
-  fScinTdcToTime       = 0;
+  DBRequest list3[]  = {{"ladcosmicflag", &fCosmicFlag, kInt, 0, 1},
+                        {"ladhodo_tdc_min", &fScinTdcMin, kDouble},
+                        {"ladhodo_tdc_max", &fScinTdcMax, kDouble},
+                        {"ladhodo_tdc_to_time", &fScinTdcToTime, kDouble},
+                        {"ladhodo_TopAdcTimeWindowMin", fHodoTopAdcTimeWindowMin, kDouble, (UInt_t)fMaxHodoScin, 1},
+                        {"ladhodo_TopAdcTimeWindowMax", fHodoTopAdcTimeWindowMax, kDouble, (UInt_t)fMaxHodoScin, 1},
+                        {"ladhodo_BtmAdcTimeWindowMin", fHodoBtmAdcTimeWindowMin, kDouble, (UInt_t)fMaxHodoScin, 1},
+                        {"ladhodo_BtmAdcTimeWindowMax", fHodoBtmAdcTimeWindowMax, kDouble, (UInt_t)fMaxHodoScin, 1},
+                        {"ladhodo_matching_paddle_tol", &fMatchingPaddleTol, kInt, 0, 1},
+                        {"ladhodo_matching_time_tol", &fMatchingTimeTol, kDouble, 0, 1},
+                        {"ladhodo_matching_dy_tol", &fMatchingDyTol, kDouble, 0, 1},
+                        {0}};
+  fMatchingPaddleTol = 0;
+  fMatchingTimeTol   = 10.0;
+  fMatchingDyTol     = 20.0;
+  fCosmicFlag        = 0;
+  fScinTdcMin        = 0;
+  fScinTdcMax        = 0;
+  fScinTdcToTime     = 0;
 
   gHcParms->LoadParmValues((DBRequest *)&list3, prefix_lad);
 
@@ -468,128 +467,116 @@ Int_t THcLADHodoscope::FineProcess(TClonesArray &tracks) {
 
   Int_t ntracks = fGEMTracks->GetLast() + 1;
 
-  if (ntracks > 0) {
-    vector<Double_t> nPmtHit(ntracks);
-    vector<Double_t> timeAtFP(ntracks);
-    // Loop over all tracks and get corrected time, tof, beta...
-    num_unique_hits = 0;
-    for (Int_t ip = 0; ip < fNPlanes; ip++) {
-      if (strcmp(fPlanes[ip]->GetName(), "REFBAR") == 0) {
+  vector<Double_t> nPmtHit(ntracks);
+  vector<Double_t> timeAtFP(ntracks);
+  // Loop over all tracks and get corrected time, tof, beta...
+  num_unique_hits = 0;
+  for (Int_t ip = 0; ip < fNPlanes; ip++) {
+    if (strcmp(fPlanes[ip]->GetName(), "REFBAR") == 0) {
+      continue;
+    }
+    num_unique_hits += fPlanes[ip]->GetNScinHits();
+  }
+  num_unique_good_hits = 0;
+  std::map<std::pair<int, int>, bool> hitUsedMap;
+
+  // Initialize the map for all hits
+  for (Int_t ip = 0; ip < fNPlanes; ip++) {
+    for (Int_t iphit = 0; iphit < fPlanes[ip]->GetNScinHits(); iphit++) {
+      THcLADHodoHit *hit                     = (THcLADHodoHit *)fPlanes[ip]->GetHits()->At(iphit);
+      int paddle                             = hit->GetPaddleNumber() - 1;
+      hitUsedMap[std::make_pair(ip, paddle)] = false;
+    }
+  }
+
+  // Pair front and back hits to make good hits
+  for (Int_t ip = 0; ip < fNPlanes; ip += 2) {
+    for (Int_t iphit = 0; iphit < fPlanes[ip]->GetNScinHits(); iphit++) {
+      THcLADHodoHit *hit = (THcLADHodoHit *)fPlanes[ip]->GetHits()->At(iphit);
+      if (hitUsedMap[std::make_pair(ip, hit->GetPaddleNumber() - 1)]) {
         continue;
       }
-      num_unique_hits += fPlanes[ip]->GetNScinHits();
-    }
-    num_unique_good_hits = 0;
-    std::map<std::pair<int, int>, bool> hitUsedMap;
+      if (ip + 1 < fNPlanes) {
+        for (Int_t iphit2 = 0; iphit2 < fPlanes[ip + 1]->GetNScinHits(); iphit2++) {
+          THcLADHodoHit *hit2 = (THcLADHodoHit *)fPlanes[ip + 1]->GetHits()->At(iphit2);
+          if (hitUsedMap[std::make_pair(ip + 1, hit2->GetPaddleNumber() - 1)]) {
+            continue;
+          }
 
-    // Initialize the map for all hits
-    for (Int_t ip = 0; ip < fNPlanes; ip++) {
-      for (Int_t iphit = 0; iphit < fPlanes[ip]->GetNScinHits(); iphit++) {
-        THcLADHodoHit *hit                     = (THcLADHodoHit *)fPlanes[ip]->GetHits()->At(iphit);
-        int paddle                             = hit->GetPaddleNumber() - 1;
-        hitUsedMap[std::make_pair(ip, paddle)] = false;
-      }
-    }
-    // Loop over all tracks
-    for (Int_t itrack = 0; itrack < ntracks; itrack++) { // Line 133
-      nPmtHit[itrack]  = 0;
-      timeAtFP[itrack] = 0;
-
-      THcLADGEMTrack *theTrack = dynamic_cast<THcLADGEMTrack *>(fGEMTracks->At(itrack));
-      if (!theTrack)
-        return -1;
-
-      // Calculate Theta, Phi, X and Y (intercepts with z=0 plane) from THcLADGEMTrack
-      TVector3 sp1(theTrack->GetX1(), theTrack->GetY1(), theTrack->GetZ1());
-      TVector3 sp2(theTrack->GetX2(), theTrack->GetY2(), theTrack->GetZ2());
-
-      Double_t track_dz = sp2.Z() - sp1.Z();
-      if (track_dz == 0) {
-        return 0;
-      }
-      Double_t track_dx = sp2.X() - sp1.X();
-      Double_t track_dy = sp2.Y() - sp1.Y();
-
-      Double_t track_theta = TMath::ATan2(TMath::Sqrt(track_dx * track_dx + track_dy * track_dy), track_dz);
-      Double_t track_phi   = TMath::ATan2(track_dy, track_dx);
-
-      Double_t track_x0 = sp1.X() - sp1.Z() * track_dx / track_dz;
-      Double_t track_y0 = sp1.Y() - sp1.Z() * track_dy / track_dz;
-
-      // Loop over all scintillator planes
-      for (Int_t ip = 0; ip < fNPlanes; ip++) {
-        if (strcmp(fPlanes[ip]->GetName(), "REFBAR") == 0) {
-          continue;
-        }
-
-        Int_t fNScinHits       = fPlanes[ip]->GetNScinHits();
-        TClonesArray *hodoHits = fPlanes[ip]->GetHits();
-
-        Double_t zPos       = fPlanes[ip]->GetZpos();
-        Double_t dzPos      = fPlanes[ip]->GetDzpos();
-        Double_t planeTheta = fPlanes[ip]->GetTheta();
-
-        // Loop over hits with in a single plane
-        for (Int_t iphit = 0; iphit < fNScinHits; iphit++) {
-          // iphit is hit # within a plane
-          THcLADHodoHit *hit = (THcLADHodoHit *)hodoHits->At(iphit);
-
-          Int_t paddle       = hit->GetPaddleNumber() - 1;
-          Double_t zposition = zPos; // TODO: fix this (lad won't have this offset)
-
-          Double_t track_TrnsCoord, track_LongCoord;
-          // track_TrnsCoord = - track_x0 * TMath::Sin(planeTheta - TMath::Pi() / 2);
-          track_TrnsCoord = track_x0 * TMath::Sin(track_theta - TMath::Pi() / 2) /
-                            TMath::Sin(TMath::Pi() / 2 - track_theta + planeTheta);
-          track_LongCoord = track_y0;
-
-          Double_t scinTrnsCoord, scinLongCoord;
-          // x & y cooridnates are with respect to the central angle pointing to the scintillator plane
-          scinTrnsCoord = -track_TrnsCoord + TMath::Tan(track_theta - planeTheta) * (zposition); // Line 183
-
-          scinLongCoord = (-track_LongCoord +
-                           TMath::Tan(track_phi) / TMath::Cos(track_theta - planeTheta) * (zposition)); // Line 184
-
-          Double_t scinCenter = fPlanes[ip]->GetPosCenter(paddle) + fPlanes[ip]->GetPosOffset();
-
-          if ((TMath::Abs(scinCenter - scinTrnsCoord) < (fPlanes[ip]->GetSize() * 0.5 + fTrackToleranceHoriz)) &&
-              (TMath::Abs(scinLongCoord - hit->GetCalcPosition()) < fTrackToleranceVert)) {
-            if (goodhit_n >= MAXGOODHITS) {
-              // cout << "Error: Too many \"good hits\"" << endl;
-              return -1;
-            }
-            theTrack->SetHasHodoHit(true);
-            // Check if the hit has already been used
-            if ((TMath::Abs(scinCenter - scinTrnsCoord) < 100)) // Hardcoded tolerance. Fix later
-              hitUsedMap[std::make_pair(ip, paddle)] = true;    // Mark this hit as used
-
+          bool same_paddle = fabs(hit2->GetPaddleNumber() - hit->GetPaddleNumber()) <= fMatchingPaddleTol;
+          bool time_match  = fabs(hit2->GetScinCorrectedTime() - hit->GetScinCorrectedTime()) < fMatchingTimeTol;
+          bool dy_match    = fabs(hit2->GetCalcPosition() - hit->GetCalcPosition()) < fMatchingDyTol;
+          if (same_paddle && time_match && dy_match) {
+            hitUsedMap[std::make_pair(ip, hit->GetPaddleNumber() - 1)]      = true;
+            hitUsedMap[std::make_pair(ip + 1, hit2->GetPaddleNumber() - 1)] = true;
             THcGoodLADHit *goodhit = new ((*fGoodLADHits)[goodhit_n]) THcGoodLADHit();
             goodhit_n++;
             goodhit->SetPlane(0, ip);
-            goodhit->SetPaddle(0, paddle);
-            goodhit->SetTrackID(0, itrack);
-            goodhit->SetdTrkHoriz(0, scinCenter - scinTrnsCoord);
-            goodhit->SetdTrkVert(0, scinLongCoord - hit->GetCalcPosition());
+            goodhit->SetPaddle(0, hit->GetPaddleNumber() - 1);
+            // goodhit->SetTrackID(0, -1); // Set to -1 for now, will be updated in THcLADKine
+            // goodhit->SetdTrkHoriz(0,
+            //                       hit->GetCalcPosition()); // Set to hit position for now, will be updated in
+            //                       THcLADKine
+            // goodhit->SetdTrkVert(0,
+            //                      hit->GetCalcPosition()); // Set to hit position for now, will be updated in
+            //                      THcLADKine
+            // goodhit->SetHitTheta(0, 0);                   // Set to 0 for now, will be updated in THcLADKine
+            // goodhit->SetHitPhi(0, 0);                     // Set to 0 for now, will be updated in THcLADKine
             goodhit->SetHitTime(0, hit->GetScinCorrectedTime());
-            goodhit->SetHitTheta(0, track_theta);
-            goodhit->SetHitPhi(0, track_phi);
             goodhit->SetHitEdep(0, hit->GetPaddleADC());
             goodhit->SetHitEdepAmp(0, hit->GetPaddleADCpeak());
             goodhit->SetHitYPos(0, hit->GetCalcPosition());
-
-          } // condition for cenetr on a paddle
-          // ihhit++;
-        } // First loop over hits in a plane <---------
-      }
-
-    } // Main loop over tracks ends here.
-    num_unique_good_hits = 0;
-    for (const auto &hit : hitUsedMap) {
-      if (hit.second) {
-        num_unique_good_hits++;
+            goodhit->SetPlane(1, ip + 1);
+            goodhit->SetPaddle(1, hit2->GetPaddleNumber() - 1);
+            // goodhit->SetTrackID(1, -1); // Set to -1 for now, will be updated in THcLADKine
+            // goodhit->SetdTrkHoriz(1, hit2->GetCalcPosition()); // Set to hit position for now, will be updated in
+            // THcLADKine goodhit->SetdTrkVert(1, hit2->GetCalcPosition());  // Set to hit position for now, will be
+            // updated in THcLADKine goodhit->SetHitTheta(1, 0); // Set to 0 for now, will be updated in THcLADKine
+            // goodhit->SetHitPhi(1, 0);   // Set to 0 for now, will be updated in THcLADKine
+            goodhit->SetHitTime(1, hit2->GetScinCorrectedTime());
+            goodhit->SetHitEdep(1, hit2->GetPaddleADC());
+            goodhit->SetHitEdepAmp(1, hit2->GetPaddleADCpeak());
+            goodhit->SetHitYPos(1, hit2->GetCalcPosition());
+          }
+        }
       }
     }
-  } // If condition for at least one track
+  }
+
+  for (Int_t ip = 0; ip < fNPlanes; ip++) {
+    // skip reference bar plane
+    if (strcmp(fPlanes[ip]->GetName(), "REFBAR") == 0)
+      continue;
+    // only include planes 0,2,4
+    if (ip != 0 && ip != 2 && ip != 4)
+      continue;
+
+    for (Int_t iphit = 0; iphit < fPlanes[ip]->GetNScinHits(); iphit++) {
+      THcLADHodoHit *hit = (THcLADHodoHit *)fPlanes[ip]->GetHits()->At(iphit);
+      int paddle         = hit->GetPaddleNumber() - 1;
+      auto key           = std::make_pair(ip, paddle);
+      if (hitUsedMap[key])
+        continue;
+
+      // mark as used and create a single-plane good hit
+      hitUsedMap[key]        = true;
+      THcGoodLADHit *goodhit = new ((*fGoodLADHits)[goodhit_n]) THcGoodLADHit();
+      goodhit_n++;
+      goodhit->SetPlane(0, ip);
+      goodhit->SetPaddle(0, paddle);
+      goodhit->SetHitTime(0, hit->GetScinCorrectedTime());
+      goodhit->SetHitEdep(0, hit->GetPaddleADC());
+      goodhit->SetHitEdepAmp(0, hit->GetPaddleADCpeak());
+      goodhit->SetHitYPos(0, hit->GetCalcPosition());
+    }
+  }
+
+  num_unique_good_hits = 0;
+  for (const auto &hit : hitUsedMap) {
+    if (hit.second) {
+      num_unique_good_hits++;
+    }
+  }
 
   return 0;
 }
