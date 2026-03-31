@@ -382,7 +382,7 @@ Int_t THcLADKine::Process(const THaEvData &evdata) {
     } else {
       hit_index_for_best_chisq = 1*3+0;
     }
-    cout<<bestchisq[2][0]<<"\t"<<bestchisq[hit_index_for_best_chisq/3][hit_index_for_best_chisq%3]<<"\t"<<bestchisq[0][0]<<endl; 
+    //cout<<bestchisq[2][0]<<"\t"<<bestchisq[hit_index_for_best_chisq/3][hit_index_for_best_chisq%3]<<"\t"<<bestchisq[0][0]<<endl; 
 
     if (bestchisq[2][0] < bestchisq[hit_index_for_best_chisq/3][hit_index_for_best_chisq%3]+fchisq_cut[0]) {
       //check if the 2 hodo hit fit is better than the best single hodo hit fit by more than the chisq cut, if so, use the 2 hodo hit fit
