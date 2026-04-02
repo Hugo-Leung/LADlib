@@ -64,7 +64,7 @@ protected:
   Double_t fPhiMin;    // default -50.0 deg
   Double_t fPhiMax;    // default +50.0 deg
 
-  Double_t fchisq_cut[3];//chisq cuts for track, 2 hodo hits, 1 hodo hit, and no hodo hits.
+  Double_t fchisq_cut[2];//chisq difference between 1 and 2 hodo hit track fits, used to determine if we accept tracks with only 1 hodo hit (if chisq_2hit - chisq_1hit > fchisq_cut[0]), or if we have no hodo hits (if chisq_1hit - chisq_0hit < fchisq_cut[1])
 
   Double_t fSigma_GEM; // GEM resolution in cm, used for track fitting, should be set based on detector performance
   Double_t fSigma_Hodo; // Hodoscope resolution in cm, used for track fitting, should be set based on detector performance

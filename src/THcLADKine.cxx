@@ -40,7 +40,6 @@ ClassImp(THcLADKine)
   fPhiMax    = +50.0*TMath::DegToRad();  // rad
   fchisq_cut[0] = 20.0; // default chi2 cut for tracks with 2 hodo hits
   fchisq_cut[1] = 15.0; // default chi2 cut for tracks with 1 hodo hit
-  fchisq_cut[2] = 10.0; // default chi2 cut for tracks with no hodo hits
   fSigma_GEM = 0.1; // default GEM resolution in cm
   fSigma_Hodo = 10; // default Hodoscope resolution in cm
 
@@ -205,7 +204,6 @@ Int_t THcLADKine::ReadDatabase(const TDatime &date) {
   fPhiMin   = TMath::Max(-TMath::Pi(),TMath::Min(TMath::Pi(), fPhiMin));
   fPhiMax   = TMath::Max(-TMath::Pi(),TMath::Min(TMath::Pi(), fPhiMax));
 
-
   return err;
 }
 //_____________________________________________________________________________
@@ -257,6 +255,7 @@ Int_t THcLADKine::Process(const THaEvData &evdata) {
     gemdir[2] = vertex.Z(); //Hopefully the GEM track will be the same as elecctron vertex Z
 
     Double_t bestchisq[3][3]={{kBig,kBig,kBig},{kBig,kBig,kBig},{kBig,kBig,kBig}};// no hodo hits, 1 hodo hit, 2 hodo hits+ (F-only, B-only, F&B)
+    bool usedHodoHit[3][3]={{kFALSE,kFALSE,kFALSE},{kFALSE,kFALSE,kFALSE},{kFALSE,kFALSE,kFALSE}};
     Double_t  best_gemdir[3][3][3];
     int bestHodoHitIndex[3][3]={{-1,-1,-1},{-1,-1,-1},{-1,-1,-1}};
     //fit GEM only first, if chisq is negative, skip the track and mark as bad
@@ -265,6 +264,7 @@ Int_t THcLADKine::Process(const THaEvData &evdata) {
     dir[1]=gemdir[1];
     dir[2]=gemdir[2];// if the track doesn't have a good hodoscope match, just fit to the GEM hits and vertex
     bestchisq[0][0]= FitTrack(vertex, {v_hit1, v_hit2}, {fSigma_GEM, fSigma_GEM}, dir);
+    usedHodoHit[0][0]=kTRUE;
     if (bestchisq[0][0] < 0) {
       track->SetIsGoodTrack(kFALSE);
       track->SetChisq(bestchisq[0][0]);
@@ -330,6 +330,8 @@ Int_t THcLADKine::Process(const THaEvData &evdata) {
           best_gemdir[1][0][1]=dir[1];
           best_gemdir[1][0][2]=dir[2];
           bestHodoHitIndex[1][0]=iHodoHit;
+          usedHodoHit[1][0]=kTRUE;
+
         }
       } else if(num_hodo_hits==2){
         if (chisq>=0 && chisq<bestchisq[2][0]){
@@ -338,6 +340,7 @@ Int_t THcLADKine::Process(const THaEvData &evdata) {
           best_gemdir[2][0][1]=dir[1];
           best_gemdir[2][0][2]=dir[2];
           bestHodoHitIndex[2][0]=iHodoHit;
+          usedHodoHit[2][0]=kTRUE;
         }
         v_hits.pop_back();
         v_hits.pop_back();
@@ -355,6 +358,7 @@ Int_t THcLADKine::Process(const THaEvData &evdata) {
           best_gemdir[2][1][1]=dir[1];
           best_gemdir[2][1][2]=dir[2];
           bestHodoHitIndex[2][1]=iHodoHit;
+          usedHodoHit[2][1]=kTRUE;
         }
         v_hits.pop_back();
         v_hits.push_back(hodo_hit_pos2);
@@ -368,6 +372,7 @@ Int_t THcLADKine::Process(const THaEvData &evdata) {
           best_gemdir[2][2][1]=dir[1];
           best_gemdir[2][2][2]=dir[2];
           bestHodoHitIndex[2][2]=iHodoHit;
+          usedHodoHit[2][2]=kTRUE;
         }
       }
       v_hits.clear();
@@ -375,23 +380,21 @@ Int_t THcLADKine::Process(const THaEvData &evdata) {
     }
     //bestchisq should always be positive?
     //check between f-only, b-only, and single, which has the best chisq
-    if (bestchisq[2][1] < bestchisq[2][1] && bestchisq[2][1] < bestchisq[1][0]){
+    hit_index_for_best_chisq = 2*3+0;// default to 2 hodo hit
+    if (usedHodoHit[2][1] && bestchisq[2][1] < bestchisq[2][2] && bestchisq[2][1] < bestchisq[1][0]){
       hit_index_for_best_chisq = 2*3+1;
-    }  else if (bestchisq[2][2] < bestchisq[2][1] && bestchisq[2][2] < bestchisq[1][0]){
+    }  else if (usedHodoHit[2][2] && bestchisq[2][2] < bestchisq[2][1] && bestchisq[2][2] < bestchisq[1][0]){
       hit_index_for_best_chisq = 2*3+2;
-    } else {
+    } else if (usedHodoHit[1][0]) {
       hit_index_for_best_chisq = 1*3+0;
     }
-    //cout<<bestchisq[2][0]<<"\t"<<bestchisq[hit_index_for_best_chisq/3][hit_index_for_best_chisq%3]<<"\t"<<bestchisq[0][0]<<endl; 
-
-    if (bestchisq[2][0] < bestchisq[hit_index_for_best_chisq/3][hit_index_for_best_chisq%3]+fchisq_cut[0]) {
+    if (usedHodoHit[2][0] && ( bestchisq[2][0] - bestchisq[hit_index_for_best_chisq/3][hit_index_for_best_chisq%3]<=fchisq_cut[0])) {
       //check if the 2 hodo hit fit is better than the best single hodo hit fit by more than the chisq cut, if so, use the 2 hodo hit fit
       hit_index_for_best_chisq = 2*3+0;
-    }else if (bestchisq[0][0] < bestchisq[hit_index_for_best_chisq/3][hit_index_for_best_chisq%3]-fchisq_cut[1]) {
+    }else if (usedHodoHit[0][0] && (bestchisq[hit_index_for_best_chisq/3][hit_index_for_best_chisq%3] - bestchisq[0][0]) > fchisq_cut[1]) {
       //check if the GEM only fit is better than the best hodo hit fit by more than the chisq cut, if so, use the GEM only fit
       hit_index_for_best_chisq = 0*3+0;
     }
-    cout<<"using "<<hit_index_for_best_chisq<<endl;
     track->SetChisq(bestchisq[hit_index_for_best_chisq/3][hit_index_for_best_chisq%3]);
     track->SetAngles(best_gemdir[hit_index_for_best_chisq/3][hit_index_for_best_chisq%3][0], best_gemdir[hit_index_for_best_chisq/3][hit_index_for_best_chisq%3][1]);
     track->SetProjVertex(vertex.X(), vertex.Y(), best_gemdir[hit_index_for_best_chisq/3][hit_index_for_best_chisq%3][2]);
@@ -414,7 +417,8 @@ Int_t THcLADKine::Process(const THaEvData &evdata) {
             newhit->CopyHit(0,0,besthit);
             newhit->SetTrackID(0,track->GetTrackID());
             ntmp++; 
-          } else if(hit_index_for_best_chisq%3==2 || hit_index_for_best_chisq%3==0){
+          }
+          if(hit_index_for_best_chisq%3==2 || hit_index_for_best_chisq%3==0){
             newhit->CopyHit(1,1,besthit);
             newhit->SetTrackID(1,track->GetTrackID());
             ntmp++;
@@ -673,17 +677,16 @@ Double_t THcLADKine::FitTrack(TVector3 vertex, std::vector<TVector3> sp_position
   }
   //check if the gem track is pointing to the hodoscope hits if there are any, return negative chisq if not
   if (nPoints >2){
-    double sx = TMath::Sin(dir[0]) * TMath::Cos(dir[1]);
-    double sy = TMath::Sin(dir[0]) * TMath::Sin(dir[1]);
-    double sz = TMath::Cos(dir[0]);
+    TVector3 dir_vec = sp_positions[1] - sp_positions[0];
+    dir_vec = dir_vec.Unit();
     for (int i = 2; i < nPoints; i++) {
       //closest approach of the track to the point
-      double t = ((sp_positions[i].X() - sp_positions[0].X()) * sx +
-                  (sp_positions[i].Y() - sp_positions[0].Y()) * sy +
-                  (sp_positions[i].Z() - sp_positions[0].Z()) * sz);
-      double x_closest = sp_positions[0].X() + t * sx;
-      double y_closest = sp_positions[0].Y() + t * sy;
-      double z_closest = sp_positions[0].Z() + t * sz;
+      double t = ((sp_positions[i].X() - sp_positions[0].X()) * dir_vec.X() +
+                  (sp_positions[i].Y() - sp_positions[0].Y()) * dir_vec.Y() +
+                  (sp_positions[i].Z() - sp_positions[0].Z()) * dir_vec.Z());
+      double x_closest = sp_positions[0].X() + t * dir_vec.X();
+      double y_closest = sp_positions[0].Y() + t * dir_vec.Y();
+      double z_closest = sp_positions[0].Z() + t * dir_vec.Z();
       double dx = sp_positions[i].X() - x_closest;
       double dy = sp_positions[i].Y() - y_closest;
       double dz = sp_positions[i].Z() - z_closest;
