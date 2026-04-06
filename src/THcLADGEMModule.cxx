@@ -1135,14 +1135,16 @@ Int_t THcLADGEMModule::Decode(const THaEvData &evdata) {
             fCM_online[2 * iw]     = double(CMcalc_signed[2 * iw]);
             fCM_online[2 * iw + 1] = double(CMcalc_signed[2 * iw + 1]);
 
-            //Thesee are filled six times per APV per event:
-	          if( it->axis == LADGEM::kUaxis ){
-	            hcommonmode_online_by_APV_U->Fill( it->pos, fCM_online[2*iw] );
-	            hcommonmode_online_by_APV_U->Fill( it->pos, fCM_online[2*iw+1] );
-	          } else {
-	            hcommonmode_online_by_APV_V->Fill( it->pos, fCM_online[2*iw] );
-	            hcommonmode_online_by_APV_V->Fill( it->pos, fCM_online[2*iw+1] );
-	          }
+            if (fPedDiagHistosInitialized) {
+              //Thesee are filled six times per APV per event:
+	            if( it->axis == LADGEM::kUaxis ){
+	              hcommonmode_online_by_APV_U->Fill( it->pos, fCM_online[2*iw] );
+	              hcommonmode_online_by_APV_U->Fill( it->pos, fCM_online[2*iw+1] );
+	            } else {
+	              hcommonmode_online_by_APV_V->Fill( it->pos, fCM_online[2*iw] );
+	              hcommonmode_online_by_APV_V->Fill( it->pos, fCM_online[2*iw+1] );
+	            }
+            }
           }
         }
       }
