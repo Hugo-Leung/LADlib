@@ -742,6 +742,7 @@ Double_t THcLADKine::FitTrack(TVector3 vertex, std::vector<TVector3> sp_position
   minimizer->SetLimitedVariable(2, "z_vertex", initial_params[2], 0.1, fZCellMin, fZCellMax); //the target length is 20cm
   minimizer->Minimize();
   if (minimizer->Status() != 0) {
+    delete minimizer;
     return -6; // Fit did not converge
   }
   const double *best_params = minimizer->X();
