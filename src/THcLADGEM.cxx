@@ -500,13 +500,11 @@ Int_t THcLADGEM::CoarseProcess(TClonesArray &tracks) {
   }
 
   for (auto gemhit1 : f2DHits[fNLayers - 2]) {
-    int gemhit1_id = 0;
     // LHE. The -X is a hard-coded fix to get the right coordinate system. This should be really easy to fix in the
     // param file instead, but we're currently trying to debug low-level gem issues, and doing this is one less moving
     // part.
     TVector3 v_hit1(gemhit1.posX, gemhit1.posY, gemhit1.posZ);
     for (auto gemhit2 : f2DHits[fNLayers - 1]) {
-      int gemhit2_id = 0;
 
       if (!gemhit1.IsGoodHit || !gemhit2.IsGoodHit)
         continue;
@@ -549,18 +547,7 @@ Int_t THcLADGEM::CoarseProcess(TClonesArray &tracks) {
       TVector3 v_closest = v_hit1 + t * (v_hit2 - v_hit1);
       TVector3 v_dca = v_prim - v_closest;
       double d0 = v_dca.Mag();
-      //double d0_y = TMath::Abs(v_dca.Y());
-      //double d0_x = TMath::Abs(v_dca.X());
-      //double d0_z = TMath::Abs(v_dca.Z());
-
       // here we can put a range/fiducial cut on d0 taking into account the target size
-
-      // Calculate d0 in the x-z plane (y=0)
-      // double numer_xz = std::abs((v_prim.X() - v_hit1.X()) * (v_prim.Z() - v_hit2.Z()) -
-      //            (v_prim.Z() - v_hit1.Z()) * (v_prim.X() - v_hit2.X()));
-      // double denom_xz = std::sqrt(std::pow(v_hit2.X() - v_hit1.X(), 2) +
-      //             std::pow(v_hit2.Z() - v_hit1.Z(), 2));
-      // double d0 = numer_xz / denom_xz;
 
       if (d0 > fD0Cut) {
       //if ( d0_x>fD0Cut[0] || d0_y>fD0Cut[1] || d0_z>fD0Cut[2]) {
@@ -598,9 +585,7 @@ Int_t THcLADGEM::CoarseProcess(TClonesArray &tracks) {
         cout<<"Too many tracks!!! "<< fNTracks << " > "<<MAXTRACKS<<endl;
       }
       fNTracks++;
-      gemhit2_id++;
     }
-    gemhit1_id++;
   }
 
   return 0;
