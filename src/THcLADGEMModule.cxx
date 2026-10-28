@@ -304,8 +304,6 @@ THaAnalysisObject::EStatus THcLADGEMModule::Init(const TDatime &date) {
     fCommonModePlotsInitialized = true;
   }
 
-  fOfflineZeroSuppress = kFALSE;
-
   return fStatus = kOK;
 }
 
@@ -320,7 +318,7 @@ Int_t   THcLADGEMModule::Begin( THaRunBase* r){
   }
   std::cout << "THcLADGEMModule::Begin: CODA DAQ info: VTP_MPDRO_BUILD_ALL_SAMPLES = " << r->GetDAQInfo("VTP_MPDRO_BUILD_ALL_SAMPLES") 
       << ", VTP_MPDRO_ENABLE_CM = " << r->GetDAQInfo("VTP_MPDRO_ENABLE_CM") << std::endl;
-  if (fOfflineZeroSuppress && fZeroSuppress){
+  if (fOfflineZeroSuppress && !fCODA_BUILD_ALL_SAMPLES){
     std::cout<<"THcLADGEMModule::Begin: Offline zero suppression is ON, but zero suppression is also ON. Disabling offline zero suppression." << std::endl;
     fOfflineZeroSuppress = kFALSE;
   }
