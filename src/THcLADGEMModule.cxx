@@ -304,6 +304,7 @@ THaAnalysisObject::EStatus THcLADGEMModule::Init(const TDatime &date) {
     fCommonModePlotsInitialized = true;
   }
 
+  fOfflineZeroSuppress = kFALSE;
 
   return fStatus = kOK;
 }
@@ -319,6 +320,10 @@ Int_t   THcLADGEMModule::Begin( THaRunBase* r){
   }
   std::cout << "THcLADGEMModule::Begin: CODA DAQ info: VTP_MPDRO_BUILD_ALL_SAMPLES = " << r->GetDAQInfo("VTP_MPDRO_BUILD_ALL_SAMPLES") 
       << ", VTP_MPDRO_ENABLE_CM = " << r->GetDAQInfo("VTP_MPDRO_ENABLE_CM") << std::endl;
+  if (fOfflineZeroSuppress && fZeroSuppress){
+    std::cout<<"THcLADGEMModule::Begin: Offline zero suppression is ON, but zero suppression is also ON. Disabling offline zero suppression." << std::endl;
+    fOfflineZeroSuppress = kFALSE;
+  }
   return 0;
 }
 //____________________________________________________________________________________
@@ -515,6 +520,7 @@ Int_t THcLADGEMModule::ReadDatabase(const TDatime &date) {
   gHcParms->LoadParmValues((DBRequest *)&list1, prefix.c_str());
   // common for all layers -- move to THcLADGEM::ReadDatabase?
   const DBRequest list2[] = {{"lgem_zerosuppress", &fZeroSuppress, kInt, 0, 1}, // optional
+                             {"lgem_offline_zerosuppress", &fOfflineZeroSuppress, kInt, 0, 1},// Remove time samples where the common mode and pedestal sutracted ADC values are below a certain threshold(will use pedRMS to generate the threshold)
                              {"lgem_zerosuppress_nsigma", &fZeroSuppressRMS, kDouble, 0, 1},
                              {"lgem_do_neg_signal_study", &fNegSignalStudy, kInt, 0, 1},
                              {"lgem_pedestal_mode", &fPedestalMode, kInt, 0, 1},
@@ -796,7 +802,18 @@ Int_t THcLADGEMModule::ReadDatabase(const TDatime &date) {
     fBadStrips[i].module_id = bad_strips_modid[i];
     fBadStrips[i].axis      = bad_strips_axis[i];
   }
-
+  if (fOfflineZeroSuppress){
+    if (!fPedestalMode){
+      std::cout<<"THcLADGEMModule: fOfflineZeroSuppress = " << fOfflineZeroSuppress << std::endl;
+    }else{
+      std::cout<<"THcLADGEMModule: Pedestal mode ON, offline zero suppression should be OFF" << std::endl;
+      fOfflineZeroSuppress = kFALSE;
+    }
+    if (fNegSignalStudy){
+      std::cout<<"THcLADGEMModule: Negative signal study ON, offline zero suppression should be OFF" << std::endl;
+      fOfflineZeroSuppress = kFALSE;
+    }
+  }
   return 0;
 }
 
@@ -1455,6 +1472,9 @@ Int_t THcLADGEMModule::Decode(const THaEvData &evdata) {
 
           // The following value already has pedestal and common-mode subtracted (if applicable):
           double ADCvalue = commonModeSubtractedADC[iraw]; // zero-suppress BEFORE we apply gain correction
+          if(fOfflineZeroSuppress && ADCvalue < 0){//hard coded threshold as zero for now. FIX ME
+            ADCvalue = 0.0; // Zero-suppress the time sample if it is below threshold
+          }
 
           ADCtemp[adc_samp] = ADCvalue; // common-mode AND pedestal subtracted
 
@@ -1533,7 +1553,8 @@ Int_t THcLADGEMModule::Decode(const THaEvData &evdata) {
         // this amounts to using a higher effective threshold than cutting on the max ADC sample would have been:
         // fThresholdStripSum is in many respects redundant with fZeroSuppressRMS
         if (!fZeroSuppress ||
-            (ADCsum_temp / double(fN_MPD_TIME_SAMP) > fZeroSuppressRMS * rmstemp)) { // Default threshold is 5-sigma!
+            (ADCsum_temp / double(fN_MPD_TIME_SAMP) > fZeroSuppressRMS * rmstemp) && ADCsum_temp != 0) { // Default threshold is 5-sigma!
+            //not sure if the condition ADCsum_temp != 0 is necessary, but it prevents division by zero in the average calculation.
           // Increment hit count and populate decoded data structures:
           // threshold on the average ADC
 
