@@ -128,13 +128,13 @@ class THcLADGEMModule : public THaSubDetector {
   Bool_t   fPedestalMode;
   Bool_t   fSubtractPedBeforeCommonMode;
   Double_t fZeroSuppressRMS;
-  Bool_t   fZeroSuppress;
+  Bool_t   fZeroSuppress; //Remove the Strips if the ADCsum is below the threshold (fZeroSuppressRMS * fPedRMS) for that strip
   Bool_t   fNegSignalStudy;
   Int_t   fmin_strip_per_clust;
   Int_t   fmax_strip_per_clust;
   Int_t   fMinTimeSamp;
   Int_t   fMaxTimeSamp;
-  Bool_t   fOfflineZeroSuppress;// Remove time samples where the common mode and pedestal sutracted ADC values are below a certain threshold(will use pedRMS to generate the threshold)
+  Bool_t   fZeroSuppressTS;// Remove time samples where the common mode and pedestal sutracted ADC values are below a certain threshold(will use pedRMS to generate the threshold)
 
   Bool_t fOnlineZeroSuppression; //this MIGHT be redundant with fZeroSuppress (or not)
   Int_t fCODA_BUILD_ALL_SAMPLES;
