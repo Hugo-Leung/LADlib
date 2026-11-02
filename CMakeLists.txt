@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.5)
 project(LADlib LANGUAGES CXX)
 
 if(NOT TARGET hcana:HallC)
-  if(DEFINED EVN{HCANA})
+  if(DEFINED ENV{HCANA})
     set(CMAKE_PREFIX_PATH "$ENV{HCANA}" "${CMAKE_PREFIX_PATH}")
   endif()
 

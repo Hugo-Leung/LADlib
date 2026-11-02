@@ -5,6 +5,8 @@
 #include "THcParmList.h"
 #include "THaRunBase.h"
 
+#include <cmath>
+
 using namespace std;
 
 ClassImp(THcLADGEMModule)
@@ -2105,8 +2107,9 @@ Int_t THcLADGEMModule::Decode(const THaEvData &evdata) {
 Int_t THcLADGEMModule::CoarseProcess(TClonesArray &tracks) {
   //  cout << "THcLADGEMModule::CoarseProcess" << endl;
   // Find 1D clusters for each axis
-  FindClusters1D(LADGEM::kUaxis); // +input ucenter, 0.5*(umax-umin) for u strips
-  FindClusters1D(LADGEM::kVaxis); // +input ucenter, 0.5*(umax-umin) for v strips
+  FindClusters1D(LADGEM::kUaxis, 0); // +input ucenter, 0.5*(umax-umin) for u strips
+  FindClusters1D(LADGEM::kUaxis, 1); // duplicate-card chain (far side of the beam hole)
+  FindClusters1D(LADGEM::kVaxis, 0); // +input ucenter, 0.5*(umax-umin) for v strips
 
   // Find 2D hits
   Find2DHits();
@@ -2122,13 +2125,95 @@ Int_t THcLADGEMModule::FineProcess(TClonesArray &tracks) {
 }
 
 //____________________________________________________________________________________
-void THcLADGEMModule::FindClusters1D(LADGEM::GEMaxis_t axis) {
+void THcLADGEMModule::FindClusters1D(LADGEM::GEMaxis_t axis, Int_t pass) {
 
   UShort_t maxsep      = (axis == LADGEM::kUaxis) ? fMaxNeighborsU_totalcharge : fMaxNeighborsV_totalcharge;
   UShort_t maxsepcoord = (axis == LADGEM::kUaxis) ? fMaxNeighborsU_hitpos : fMaxNeighborsV_hitpos;
   UInt_t Nstrips       = (axis == LADGEM::kUaxis) ? fNstripsU : fNstripsV;
   Double_t pitch       = (axis == LADGEM::kUaxis) ? fUStripPitch : fVStripPitch;
   Double_t offset      = (axis == LADGEM::kUaxis) ? fUStripOffset : fVStripOffset;
+
+  // ---- U-axis beam-hole geometry -------------------------------------------
+  //
+  // Along V every APV card sits next to the previous one, so strip number maps
+  // monotonically onto position. Along U the beam hole at the top of the module
+  // splits a band of strips in two, and the far half is read out by one extra
+  // card whose strips are numbered past the end of the nominal range.
+  //
+  // Layout, confirmed against strip occupancy (run 22570, P.gem, both modules):
+  //
+  //   strips  [0, kHoleLo)             full strips, one readout
+  //   strips  [kHoleLo, kHoleHi)       split by the hole -- side A half-strips.
+  //                                    Exactly one APV wide (128). Straddles two
+  //                                    cards: last 16 of card 9 + first 112 of
+  //                                    card 10.
+  //   strips  [kHoleHi, kDupLo)        card 10's remaining 16 channels. NO strips
+  //                                    attached -- measured to have exactly zero
+  //                                    hits on both modules, and anomalous
+  //                                    pedestal RMS. Skipped below.
+  //   strips  [kDupLo, kDupLo+128)     card 11, the duplicate: side B of the same
+  //                                    band, so it maps back onto [kHoleLo,kHoleHi)
+  //                                    by subtracting kUWrap.
+  //
+  // The "16" in these constants is a phase offset, not a width: the hole starts
+  // 16 strips before card 10's boundary, which is why side A spans two cards and
+  // why card 10 is left with 16 unconnected channels.
+  Int_t kHoleLo = -1, kHoleHi = -1, kDupLo = -1, kUWrap = 0;
+  if (axis == LADGEM::kUaxis) {
+    kHoleLo = fN_APV25_CHAN * 10 - 16; // 1264: first split strip
+    kHoleHi = kHoleLo + fN_APV25_CHAN; // 1392: one past the last split strip
+    kDupLo  = fN_APV25_CHAN * 11;      // 1408: first strip of the duplicate card
+    kUWrap  = kDupLo - kHoleLo;        // 144: duplicate label -> physical strip
+    if (kDupLo >= (Int_t)Nstrips)      // duplicate card not instrumented
+      kHoleLo = kHoleHi = kDupLo = -1;
+  }
+  // Strips with no readout attached: never expected to fire, but if noise gets
+  // through zero suppression they would produce clusters at positions that do
+  // not exist, so drop them at the source.
+  auto unconnected = [kHoleHi, kDupLo](int s) {
+    return kHoleHi >= 0 && s >= kHoleHi && s < kDupLo;
+  };
+  const bool split_u = (kHoleLo >= 0);
+  const bool dupchain = split_u && pass == 1;
+
+  // Two chains, because the hole's lower edge is a Y-branch.
+  //
+  // A full strip just below the band is physically adjacent to TWO half-strips
+  // at the next y -- one per side of the hole. That cannot be expressed with a
+  // single contiguous strip ordering, so the U axis is clustered twice:
+  //
+  //   pass 0 : full strips + side A. Strips as numbered; the duplicate card is
+  //            left out entirely.
+  //   pass 1 : full strips + side B, with the duplicate card remapped down onto
+  //            the band it actually measures. That makes side B contiguous with
+  //            the full strips below it, so a cluster CAN grow across the hole's
+  //            lower edge on that side.
+  //
+  // Clustering therefore runs in "chain index" space, which equals the physical
+  // strip index in both passes -- so positions come out right with no wrap, and
+  // toReal() converts back for the output branches. Pass 1 keeps only clusters
+  // that actually reach the duplicate card; anything living purely in the shared
+  // full strips is pass 0's to report.
+  auto toChain = [&](int s) -> int {
+    if (!split_u)
+      return s;
+    if (unconnected(s))
+      return -1;
+    if (!dupchain)
+      return (s >= kDupLo) ? -1 : s;  // pass 0: drop the duplicate card
+    if (s < kHoleLo)
+      return s;                       // shared full strips below the hole
+    if (s >= kDupLo)
+      return s - kUWrap;              // duplicate card -> the band it measures
+    return -1;                        // side A belongs to pass 0
+  };
+  auto toReal = [&](int c) -> int {
+    return (dupchain && c >= kHoleLo) ? c + kUWrap : c;
+  };
+  // Nothing to do for a second pass on an axis with no duplicate card -- it
+  // would just re-cluster the same strips.
+  if (pass == 1 && !split_u)
+    return;
 
   // Temporary containers to store strip hit information to iterate
   std::set<UShort_t> striplist;        // sorted list of strips for 1D clustering
@@ -2148,31 +2233,38 @@ void THcLADGEMModule::FindClusters1D(LADGEM::GEMaxis_t axis) {
   std::map<UShort_t, Double_t> pedrms_strip_neg;
 
   for (int ihit = 0; ihit < fNstrips_hit; ihit++) {
-    if (fAxis[ihit] == axis) {
+    // Everything below is keyed by CHAIN index, not raw strip number; the two
+    // differ only for the duplicate card on pass 1. toChain() returns -1 for
+    // strips this pass does not own.
+    Int_t cs = (fAxis[ihit] == axis) ? toChain(fStrip[ihit]) : -1;
+    if (cs >= 0) {
 
-      bool newstrip = (striplist.insert(fStrip[ihit])).second;
+      bool newstrip = (striplist.insert(cs)).second;
 
       if (newstrip) { // should always be true:
-        hitindex[fStrip[ihit]] = ihit;
+        hitindex[cs] = ihit;
+        // The pedestal RMS is looked up by the RAW strip number (fStrip), but stored
+        // under the chain index cs like everything else here, because clustering
+        // reads it back as pedrms_strip[stripmax].
         if (axis == LADGEM::kUaxis) {
-          pedrms_strip[fStrip[ihit]] = fPedRMSU[fStrip[ihit]];
+          pedrms_strip[cs] = fPedRMSU[fStrip[ihit]];
         } else {
-          pedrms_strip[fStrip[ihit]] = fPedRMSV[fStrip[ihit]];
+          pedrms_strip[cs] = fPedRMSV[fStrip[ihit]];
         }
 
         // Default flag == 0
         // using sums of ADC values over all time
         // samples on a strip
-        ADC_strip[fStrip[ihit]]    = fADCsums[ihit];
-        ADC_maxsamp[fStrip[ihit]]  = fADCmax[ihit];
-        Tmean_strip[fStrip[ihit]]  = fTmean[ihit];
-        Tfit_strip[fStrip[ihit]]   = fStripTfit[ihit];
-        Tsigma_strip[fStrip[ihit]] = fTsigma[ihit];
+        ADC_strip[cs]    = fADCsums[ihit];
+        ADC_maxsamp[cs]  = fADCmax[ihit];
+        Tmean_strip[cs]  = fTmean[ihit];
+        Tfit_strip[cs]   = fStripTfit[ihit];
+        Tsigma_strip[cs] = fTsigma[ihit];
 
         if (fClusteringFlag == 1) {
-          ADC_strip[fStrip[ihit]]   = fADCmaxDeconvCombo[ihit];
-          ADC_maxsamp[fStrip[ihit]] = fADCmaxDeconv[ihit];
-          Tmean_strip[fStrip[ihit]] = fTmeanDeconv[ihit];
+          ADC_strip[cs]   = fADCmaxDeconvCombo[ihit];
+          ADC_maxsamp[cs] = fADCmaxDeconv[ihit];
+          Tmean_strip[cs] = fTmeanDeconv[ihit];
         }
       }
     }
@@ -2498,6 +2590,12 @@ void THcLADGEMModule::FindClusters1D(LADGEM::GEMaxis_t axis) {
       }
     }
     
+    // Pass 1 exists only to let a cluster reach the duplicate card. Anything
+    // that stayed in the shared full strips below the hole is pass 0's to
+    // report, so drop it here rather than emit it twice.
+    if (dupchain && striphi < kHoleLo)
+      continue;
+
     THcLADGEMCluster cluster;
     cluster.SetMode(fClusteringFlag);
     cluster.SetLayer(fLayer);
@@ -2505,11 +2603,46 @@ void THcLADGEMModule::FindClusters1D(LADGEM::GEMaxis_t axis) {
     cluster.SetAPV(fStripADC_ID[hitindex[stripmax]]);
     cluster.SetRawStrip(fStripRaw[hitindex[stripmax]]);
     cluster.SetAxis(axis);
+    // Strip numbers stay in CHAIN space. They must: the cluster's hit-index
+    // vector is filled in chain order and indexed as (stripmax - striplo), and a
+    // bridged cluster is not contiguous in real numbering, so real strips would
+    // overrun it. In chain space they are also the more useful quantity -- they
+    // say where in y the cluster sits. The real max strip is carried alongside
+    // for anything that needs to know which APV card the charge came from.
     cluster.SetStrips(nstrips, striplo, striphi, stripmax);
-    cluster.SetPosition(sumx / sumwx);
-    cluster.SetPosMaxStrip(maxpos);
+    cluster.SetStripMaxReal(toReal(stripmax));
+
+    // Positions are already physical: clustering ran in chain-index space, which
+    // equals the physical strip index in both passes, so the duplicate card was
+    // remapped before any position was computed and needs no wrap here.
+    //
+    // Both sides of the hole measure the same y band, so a single-coordinate U
+    // measurement is unambiguous. Which SIDE the charge came from needs the x
+    // coordinate, i.e. a V partner, so that stays in Find2DHits() and is driven
+    // by the flag recorded here.
+    //   +1 -> only compatible with modNum*vpos > 0  (side A)
+    //   -1 -> only compatible with modNum*vpos < 0  (side B, duplicate card)
+    //    0 -> outside the hole band, no constraint
+    double clpos    = sumx / sumwx;
+    double clposmax = maxpos;
+    Int_t splitside = 0;
+    if (split_u) {
+      if (dupchain) {
+        splitside = -1;
+      } else if (clpos > (kHoleLo - 0.5 * Nstrips) * pitch + offset) {
+        // Position-based rather than stripmax-based on purpose: the hole's lower
+        // edge is NOT a discontinuity (strip kHoleLo-1 and kHoleLo are physically
+        // adjacent), so a cluster may legitimately straddle it and the ADC-
+        // weighted mean is what decides which band it belongs to.
+        splitside = +1;
+      }
+    }
+    cluster.SetPosition(clpos);
+    cluster.SetPosMaxStrip(clposmax);
+    cluster.SetSplitSide(splitside);
     cluster.SetHitIndex(clust_hitindex);
 
+    // Moments/sigma are shift-invariant, so they use the unwrapped sums.
     double mom       = ((sumx / sumwx) - maxpos) / pitch;
     double pos_sigma = sqrt(sumx2 / sumwx - pow(sumx / sumwx, 2));
     cluster.SetMoments(mom);
@@ -2560,23 +2693,18 @@ void THcLADGEMModule::Find2DHits() {
     for (int iu = 0; iu < nclustU; iu++) {
       for (int iv = 0; iv < nclustV; iv++) {
 
-        double upos = fClustersU[iu].GetPos();
+        double upos = fClustersU[iu].GetPos(); // physical: clustering runs in physical strip space
         double vpos = fClustersV[iv].GetPos();
         // double umom = fClustersU[iu].GetMoments();
         // double vmom = fClustersV[iv].GetMoments();
-        
-        //Hardcoded fix to move APV pos 10 and 11 on U axis
-        if (fClustersU[iu].GetPos()> (fN_APV25_CHAN*5)*fUStripPitch){
-          upos -= (fN_APV25_CHAN+16)*fUStripPitch;// move back by one APV
-          if (modNum*vpos>0){
-            continue; // the strips on this APV only go up to the hole, so skip if vpos is positive
-          }
-        }else if (fClustersU[iu].GetPos()> (fN_APV25_CHAN*4-16)*fUStripPitch){
-          if (modNum*vpos<0){
-            continue; // the strips on this APV only go up to the hole, so skip if vpos is negative
-          }
-        }
-        
+
+        // Half-strip APV cards at the top of the module (see FindClusters1D):
+        // two cards share a U range but each only spans one side of the hole,
+        // so a U cluster from there can only pair with a V cluster on its side.
+        Int_t splitside = fClustersU[iu].GetSplitSide();
+        if (splitside != 0 && splitside * modNum * vpos < 0)
+          continue;
+
 
         TVector2 PosUV(upos, vpos);
         TVector2 PosXY = UVtoXY(PosUV); // no changes if using XY GEM

@@ -384,7 +384,12 @@ class THcLADGEMModule : public THaSubDetector {
   void     InitAPVMAP();
   Int_t    GetChannelMap(const char* prefix, const TDatime& date);
 
-  void FindClusters1D(LADGEM::GEMaxis_t axis);
+  // pass 0 = strips as numbered, excluding the duplicate APV card.
+  // pass 1 = the duplicate card's chain: full strips below the beam hole plus
+  //          the duplicate card remapped onto the band it physically measures,
+  //          so a cluster can span the hole's lower edge on that side. Only
+  //          meaningful on the U axis; see FindClusters1D() for the layout.
+  void FindClusters1D(LADGEM::GEMaxis_t axis, Int_t pass = 0);
   void Find2DHits();
 
   std::vector<THcLADGEMCluster> fClustersU;

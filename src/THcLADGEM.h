@@ -71,13 +71,12 @@ protected:
   void LoadCM();
   void RotateToLab(Double_t angle, TVector3 &vect);
 
-  static const Int_t MAXTRACKS =150000; // Was 100
-
   Int_t fNModules; // total number of modules
   Int_t fNLayers;  // total number of GEM layers
   Int_t fNhits;
   Int_t fNClusters;
   Int_t fNTracks;
+  Int_t fMaxTracks; // max GEM tracks stored per event (param lgem_max_tracks)
 
   std::string fPedFilename;
   std::string fCMFilename;

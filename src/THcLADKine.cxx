@@ -149,22 +149,18 @@ Int_t THcLADKine::ReadDatabase(const TDatime &date) {
   prefix[0] = 'l';
   prefix[1] = '\0';
 
-  fD0Cut_wVertex        = 0.0;
-  fD0Cut_noVertex       = 0.0;
-  fMax_dTrk_horiz_match = 0.0;
-  fMax_dTrk_vert_match  = 0.0;
-  fNfixed_z             = 0;
-  fglobal_time_offset   = 0.0;
-  fTrk_dtCut            = 10.0;
-  fDoNoVertexTracking   = 1; // default: no-vertex tracking on
-  fDoXZTracking         = 0; // default: x-z (no-y) tracking off
+  fD0Cut_wVertex       = 0.0;
+  fD0Cut_noVertex      = 0.0;
+  fNfixed_z            = 0;
+  fglobal_time_offset  = 0.0;
+  fTrk_dtCut           = 10.0;
+  fDoNoVertexTracking  = 1; // default: no-vertex tracking on
+  fDoXZTracking        = 0; // default: x-z (no-y) tracking off
 
   cout << "Reading LAD Kinematics parameters from database..." << endl;
 
   DBRequest list[] = {{"d0_cut_wVertex", &fD0Cut_wVertex, kDouble, 0, 1},
                       {"d0_cut_noVertex", &fD0Cut_noVertex, kDouble, 0, 1},
-                      {"max_dTrk_horiz_hitMatch", &fMax_dTrk_horiz_match, kDouble, 0, 1},
-                      {"max_dTrk_vert_hitMatch", &fMax_dTrk_vert_match, kDouble, 0, 1},
                       {"nfixed_z", &fNfixed_z, kInt, 0, 1},
                       {"global_time_offset", &fglobal_time_offset, kDouble, 0, 1},
                       {"trk_dt_cut", &fTrk_dtCut, kDouble, 0, 1},

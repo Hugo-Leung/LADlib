@@ -50,6 +50,8 @@ class THcLADGEMCluster : public TObject {
   Double_t GetLayer() { return fLayer; }
   Double_t GetAxis() { return fAxis; }
   Int_t    GetCLIndex() { return fCLIndex; }
+  Int_t    GetSplitSide() { return fSplitSide; }
+  Int_t    GetStripMaxReal() { return fStripMaxReal; }
   std::vector<UInt_t> GetHitIndex() { return hitindex; }
   Int_t    GetRawStrip() { return rawstrip; }
 
@@ -85,6 +87,8 @@ class THcLADGEMCluster : public TObject {
   void SetAPV(int this_value ) { fAPV = this_value; }
   void SetAxis(int this_value) { fAxis = this_value; }
   void SetCLIndex(int this_value) { fCLIndex = this_value; }
+  void SetSplitSide(int this_value) { fSplitSide = this_value; }
+  void SetStripMaxReal(int this_value) { fStripMaxReal = this_value; }
   void SetHitIndex( const std::vector<UInt_t> &indices ) { hitindex = indices; }
   void SetRawStrip(int this_value) { rawstrip = this_value; }
   void SetStripADCsum( const std::vector<Double_t> &adc_sums ) { stripADCsum = adc_sums; }
@@ -105,6 +109,13 @@ class THcLADGEMCluster : public TObject {
   Int_t    fAPV; // APV adc id
   Int_t    fAxis; // U/V, X/Y 
   Int_t    fCLIndex; // cluster index, associated with a particular 2D hit
+  Int_t    fStripMaxReal; // fStripMax as a real strip number. Differs from fStripMax
+                          // only for clusters on the duplicate APV card, whose strips
+                          // are clustered in the band they physically measure. Use this
+                          // to identify the APV card; use fStripMax for position.
+  Int_t    fSplitSide; // U clusters on the half-strip APVs at the top of the module:
+                       // which side of the beam hole this cluster can pair with.
+                       // +1 = modNum*vpos > 0, -1 = modNum*vpos < 0, 0 = unconstrained
 
   Double_t fPos; // ADC weighted mean coordinate along the direction measured by the strip
   Double_t fPosMax;  // Max strip position
