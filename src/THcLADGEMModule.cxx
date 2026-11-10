@@ -306,7 +306,6 @@ THaAnalysisObject::EStatus THcLADGEMModule::Init(const TDatime &date) {
     fCommonModePlotsInitialized = true;
   }
 
-
   return fStatus = kOK;
 }
 
@@ -321,6 +320,10 @@ Int_t   THcLADGEMModule::Begin( THaRunBase* r){
   }
   std::cout << "THcLADGEMModule::Begin: CODA DAQ info: VTP_MPDRO_BUILD_ALL_SAMPLES = " << r->GetDAQInfo("VTP_MPDRO_BUILD_ALL_SAMPLES") 
       << ", VTP_MPDRO_ENABLE_CM = " << r->GetDAQInfo("VTP_MPDRO_ENABLE_CM") << std::endl;
+  if (fZeroSuppressTS && !fCODA_BUILD_ALL_SAMPLES){
+    std::cout<<"THcLADGEMModule::Begin: Offline zero suppression is ON, but zero suppression is also ON. Disabling offline zero suppression." << std::endl;
+    fZeroSuppressTS = kFALSE;
+  }
   return 0;
 }
 //____________________________________________________________________________________
@@ -516,7 +519,8 @@ Int_t THcLADGEMModule::ReadDatabase(const TDatime &date) {
                              {0}};
   gHcParms->LoadParmValues((DBRequest *)&list1, prefix.c_str());
   // common for all layers -- move to THcLADGEM::ReadDatabase?
-  const DBRequest list2[] = {{"lgem_zerosuppress", &fZeroSuppress, kInt, 0, 1}, // optional
+  const DBRequest list2[] = {{"lgem_zerosuppress", &fZeroSuppress, kInt, 0, 1}, // Remove strips the ADCsum that are below a certain threshold (default is fZeroSuppressRMS*pedRMS) )
+                             {"lgem_zerosuppress_TS", &fZeroSuppressTS, kInt, 0, 1},// Remove time samples where the common mode and pedestal sutracted ADC values are below a certain threshold(will use pedRMS to generate the threshold)
                              {"lgem_zerosuppress_nsigma", &fZeroSuppressRMS, kDouble, 0, 1},
                              {"lgem_do_neg_signal_study", &fNegSignalStudy, kInt, 0, 1},
                              {"lgem_pedestal_mode", &fPedestalMode, kInt, 0, 1},
@@ -588,6 +592,199 @@ Int_t THcLADGEMModule::ReadDatabase(const TDatime &date) {
                              {"lgem_max_time_samp", &fMaxTimeSamp, kInt, 0, 1},
                              {0}};
   gHcParms->LoadParmValues((DBRequest *)&list2, "");
+
+  //For parsing "strip" timing cuts:
+  Double_t t0_temp[2], tsigma_temp[2], tcut_temp[2];
+  Double_t t0_deconv_temp[2], tsigma_deconv_temp[2], tcut_deconv_temp[2];
+  Double_t t0_fit_temp[2], tsigma_fit_temp[2], tcut_fit_temp[2];
+  Double_t t0hit_temp[2], tsigmahit_temp[2];
+  Double_t t0hit_deconv_temp[2], tsigmahit_deconv_temp[2];
+  Double_t t0hit_fit_temp[2], tsigmahit_fit_temp[2];
+
+  //initialize temporary arrays for timing cuts to -kBig
+  for (int i = 0; i < 2; i++) {
+    t0_temp[i] = -kBig;
+    tsigma_temp[i] = -kBig;
+    tcut_temp[i] = -kBig;
+    t0_deconv_temp[i] = -kBig;
+    tsigma_deconv_temp[i] = -kBig;
+    tcut_deconv_temp[i] = -kBig;
+    t0_fit_temp[i] = -kBig;
+    tsigma_fit_temp[i] = -kBig;
+    tcut_fit_temp[i] = -kBig;
+    t0hit_temp[i] = -kBig;
+    tsigmahit_temp[i] = -kBig;
+    t0hit_deconv_temp[i] = -kBig;
+    tsigmahit_deconv_temp[i] = -kBig;
+    t0hit_fit_temp[i] = -kBig;
+    tsigmahit_fit_temp[i] = -kBig;
+  }
+  // Present entries must contain two values (X/U, Y/V); a one-value DB entry is not supported.
+  // Set the second value negative to use the first value for both axes; the first value must be positive.
+  const DBRequest list3[] = {
+      // Timing cuts for the maximum strip
+      {"_maxstrip_t0", &t0_temp[0], kDouble, static_cast<UInt_t>(2), 1},
+      {"_maxstrip_t0_deconv", &t0_deconv_temp[0], kDouble, static_cast<UInt_t>(2), 1},
+      {"_maxstrip_t0_fit", &t0_fit_temp[0], kDouble, static_cast<UInt_t>(2), 1},
+      {"_maxstrip_tcut", &tcut_temp[0], kDouble, static_cast<UInt_t>(2), 1},
+      {"_maxstrip_tcut_deconv", &tcut_deconv_temp[0], kDouble, static_cast<UInt_t>(2), 1},
+      {"_maxstrip_tcut_fit", &tcut_fit_temp[0], kDouble, static_cast<UInt_t>(2), 1},
+      {"_maxstrip_tsigma", &tsigma_temp[0], kDouble, static_cast<UInt_t>(2), 1},
+      {"_maxstrip_tsigma_deconv", &tsigma_deconv_temp[0], kDouble, static_cast<UInt_t>(2), 1},
+      {"_maxstrip_tsigma_fit", &tsigma_fit_temp[0], kDouble, static_cast<UInt_t>(2), 1},
+      // Timing cuts for the 2D hit
+      {"_HitTimeMean", &t0hit_temp[0], kDouble, static_cast<UInt_t>(2), 1},
+      {"_HitTimeSigma", &tsigmahit_temp[0], kDouble, static_cast<UInt_t>(2), 1},
+      {"_HitTimeMeanDeconv", &t0hit_deconv_temp[0], kDouble, static_cast<UInt_t>(2), 1},
+      {"_HitTimeSigmaDeconv", &tsigmahit_deconv_temp[0], kDouble, static_cast<UInt_t>(2), 1},
+      {"_HitTimeMeanFit", &t0hit_fit_temp[0], kDouble, static_cast<UInt_t>(2), 1},
+      {"_HitTimeSigmaFit", &tsigmahit_fit_temp[0], kDouble, static_cast<UInt_t>(2), 1},
+      {0}};
+  gHcParms->LoadParmValues((DBRequest *)&list3, prefix.c_str());
+  //add some timing cuts from SBS(https://github.com/JeffersonLab/SBS-offline/blob/33a52e215be02e2724360b5256fdbbeb33fb69b8/SBSGEMModule.cxx#L388-L396)
+  //and (https://github.com/JeffersonLab/SBS-offline/blob/33a52e215be02e2724360b5256fdbbeb33fb69b8/SBSGEMModule.cxx#L425-L430)
+  //since we only have 2 GEMs, ask for 1 set per module
+
+  // Add parsing of timing cut arguments now:
+  if (t0_temp[0] > 0) {
+    if (t0_temp[1] < 0) {
+      fStripMaxTcut_central[0] = fStripMaxTcut_central[1] = t0_temp[0];
+    } else {
+      for (int axis = 0; axis < 2; axis++)
+        fStripMaxTcut_central[axis] = t0_temp[axis];
+    }
+  }
+
+  if (tcut_temp[0] > 0) {
+    if (tcut_temp[1] < 0) {
+      fStripMaxTcut_width[0] = fStripMaxTcut_width[1] = tcut_temp[0];
+    } else {
+      for (int axis = 0; axis < 2; axis++)
+        fStripMaxTcut_width[axis] = tcut_temp[axis];
+    }
+  }
+
+  if (tsigma_temp[0] > 0) {
+    if (tsigma_temp[1] < 0) {
+      fStripMaxTcut_sigma[0] = fStripMaxTcut_sigma[1] = tsigma_temp[0];
+    } else {
+      for (int axis = 0; axis < 2; axis++)
+        fStripMaxTcut_sigma[axis] = tsigma_temp[axis];
+    }
+  }
+
+  // Deconvoluted strip time cuts:
+  if (t0_deconv_temp[0] > 0) {
+    if (t0_deconv_temp[1] < 0) {
+      fStripMaxTcut_central_deconv[0] = fStripMaxTcut_central_deconv[1] = t0_deconv_temp[0];
+    } else {
+      for (int axis = 0; axis < 2; axis++)
+        fStripMaxTcut_central_deconv[axis] = t0_deconv_temp[axis];
+    }
+  }
+
+  if (tcut_deconv_temp[0] > 0) {
+    if (tcut_deconv_temp[1] < 0) {
+      fStripMaxTcut_width_deconv[0] = fStripMaxTcut_width_deconv[1] = tcut_deconv_temp[0];
+    } else {
+      for (int axis = 0; axis < 2; axis++)
+        fStripMaxTcut_width_deconv[axis] = tcut_deconv_temp[axis];
+    }
+  }
+
+  if (tsigma_deconv_temp[0] > 0) {
+    if (tsigma_deconv_temp[1] < 0) {
+      fStripMaxTcut_sigma_deconv[0] = fStripMaxTcut_sigma_deconv[1] = tsigma_deconv_temp[0];
+    } else {
+      for (int axis = 0; axis < 2; axis++)
+        fStripMaxTcut_sigma_deconv[axis] = tsigma_deconv_temp[axis];
+    }
+  }
+
+  // Fit strip time cuts:
+  if (t0_fit_temp[0] > 0) {
+    if (t0_fit_temp[1] < 0) {
+      fStripMaxTcut_central_fit[0] = fStripMaxTcut_central_fit[1] = t0_fit_temp[0];
+    } else {
+      for (int axis = 0; axis < 2; axis++)
+        fStripMaxTcut_central_fit[axis] = t0_fit_temp[axis];
+    }
+  }
+
+  if (tcut_fit_temp[0] > 0) {
+    if (tcut_fit_temp[1] < 0) {
+      fStripMaxTcut_width_fit[0] = fStripMaxTcut_width_fit[1] = tcut_fit_temp[0];
+    } else {
+      for (int axis = 0; axis < 2; axis++)
+        fStripMaxTcut_width_fit[axis] = tcut_fit_temp[axis];
+    }
+  }
+
+  if (tsigma_fit_temp[0] > 0) {
+    if (tsigma_fit_temp[1] < 0) {
+      fStripMaxTcut_sigma_fit[0] = fStripMaxTcut_sigma_fit[1] = tsigma_fit_temp[0];
+    } else {
+      for (int axis = 0; axis < 2; axis++)
+        fStripMaxTcut_sigma_fit[axis] = tsigma_fit_temp[axis];
+    }
+  }
+
+  // Parsing hit time mean and sigma: standard
+  if (t0hit_temp[0] > 0) {
+    if (t0hit_temp[1] < 0) {
+      fHitTimeMean[0] = fHitTimeMean[1] = t0hit_temp[0];
+    } else {
+      for (int axis = 0; axis < 2; axis++)
+        fHitTimeMean[axis] = t0hit_temp[axis];
+    }
+  }
+
+  if (tsigmahit_temp[0] > 0) {
+    if (tsigmahit_temp[1] < 0) {
+      fHitTimeSigma[0] = fHitTimeSigma[1] = tsigmahit_temp[0];
+    } else {
+      for (int axis = 0; axis < 2; axis++)
+        fHitTimeSigma[axis] = tsigmahit_temp[axis];
+    }
+  }
+
+  // Parsing hit time mean and sigma: deconvoluted
+  if (t0hit_deconv_temp[0] > 0) {
+    if (t0hit_deconv_temp[1] < 0) {
+      fHitTimeMeanDeconv[0] = fHitTimeMeanDeconv[1] = t0hit_deconv_temp[0];
+    } else {
+      for (int axis = 0; axis < 2; axis++)
+        fHitTimeMeanDeconv[axis] = t0hit_deconv_temp[axis];
+    }
+  }
+
+  if (tsigmahit_deconv_temp[0] > 0) {
+    if (tsigmahit_deconv_temp[1] < 0) {
+      fHitTimeSigmaDeconv[0] = fHitTimeSigmaDeconv[1] = tsigmahit_deconv_temp[0];
+    } else {
+      for (int axis = 0; axis < 2; axis++)
+        fHitTimeSigmaDeconv[axis] = tsigmahit_deconv_temp[axis];
+    }
+  }
+
+  // Parsing hit time mean and sigma: fit times
+  if (t0hit_fit_temp[0] > 0) {
+    if (t0hit_fit_temp[1] < 0) {
+      fHitTimeMeanFit[0] = fHitTimeMeanFit[1] = t0hit_fit_temp[0];
+    } else {
+      for (int axis = 0; axis < 2; axis++)
+        fHitTimeMeanFit[axis] = t0hit_fit_temp[axis];
+    }
+  }
+
+  if (tsigmahit_fit_temp[0] > 0) {
+    if (tsigmahit_fit_temp[1] < 0) {
+      fHitTimeSigmaFit[0] = fHitTimeSigmaFit[1] = tsigmahit_fit_temp[0];
+    } else {
+      for (int axis = 0; axis < 2; axis++)
+        fHitTimeSigmaFit[axis] = tsigmahit_fit_temp[axis];
+    }
+  }
 
   InitAPVMAP();
 
@@ -797,6 +994,18 @@ Int_t THcLADGEMModule::ReadDatabase(const TDatime &date) {
     fBadStrips[i].pos_hi    = bad_pos_hi[i];
     fBadStrips[i].module_id = bad_strips_modid[i];
     fBadStrips[i].axis      = bad_strips_axis[i];
+  }
+  if (fZeroSuppressTS){
+    if (!fPedestalMode){
+      std::cout<<"THcLADGEMModule: fZeroSuppressTS = " << fZeroSuppressTS << std::endl;
+    }else{
+      std::cout<<"THcLADGEMModule: Pedestal mode ON, offline TS zero suppression should be OFF" << std::endl;
+      fZeroSuppressTS = kFALSE;
+    }
+    if (fNegSignalStudy){
+      std::cout<<"THcLADGEMModule: Negative signal study ON, offline TS zero suppression should be OFF" << std::endl;
+      fZeroSuppressTS = kFALSE;
+    }
   }
 
   return 0;
@@ -1457,6 +1666,9 @@ Int_t THcLADGEMModule::Decode(const THaEvData &evdata) {
 
           // The following value already has pedestal and common-mode subtracted (if applicable):
           double ADCvalue = commonModeSubtractedADC[iraw]; // zero-suppress BEFORE we apply gain correction
+          if(fZeroSuppressTS && ADCvalue < 0){//hard coded threshold as zero for now. FIX ME
+            ADCvalue = 0.0; // Zero-suppress the time sample if it is below threshold
+          }
 
           ADCtemp[adc_samp] = ADCvalue; // common-mode AND pedestal subtracted
 
@@ -1535,7 +1747,8 @@ Int_t THcLADGEMModule::Decode(const THaEvData &evdata) {
         // this amounts to using a higher effective threshold than cutting on the max ADC sample would have been:
         // fThresholdStripSum is in many respects redundant with fZeroSuppressRMS
         if (!fZeroSuppress ||
-            (ADCsum_temp / double(fN_MPD_TIME_SAMP) > fZeroSuppressRMS * rmstemp)) { // Default threshold is 5-sigma!
+            (ADCsum_temp / double(fN_MPD_TIME_SAMP) > fZeroSuppressRMS * rmstemp) && ADCsum_temp != 0) { // Default threshold is 5-sigma!
+            //not sure if the condition ADCsum_temp != 0 is necessary, but it prevents division by zero in the average calculation.
           // Increment hit count and populate decoded data structures:
           // threshold on the average ADC
 
