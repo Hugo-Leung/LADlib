@@ -1,0 +1,28 @@
+Bootstrap:localimage
+From: lad-al9.sif
+
+%files
+    ./clhep.sh /opt/clhep.sh
+	./geant4.sh /opt/geant4.sh
+
+%post
+    bash /opt/clhep.sh
+    bash /opt/geant4.sh
+    rm /opt/clhep.sh /opt/geant4.sh
+	echo "GEANT4_VERSION $(/opt/geant4/bin/geant4-config --version)" >> $APPTAINER_LABELS
+	echo "CLHEP_VERSION $(/opt/CLHEP/bin/clhep-config --version)" >> $APPTAINER_LABELS
+
+%environment
+	export PATH=/opt/CLHEP/bin:/opt/geant4/bin:$PATH
+	export LD_LIBRARY_PATH=/opt/geant4/lib64:$LD_LIBRARY_PATH
+	export ROOT_INCLUDE_PATH=/opt/CLHEP/include:$ROOT_INCLUDE_PATH
+	export GEANT4_DATA_DIR=/opt/geant4/share/Geant4/data
+
+%test 
+    geant4-config --version
+    if [ $? -eq 0 ]; then
+        echo "geant4 is built sucessfully."
+    else
+        echo "Build failed."
+        exit 1
+    fi

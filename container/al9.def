@@ -1,0 +1,60 @@
+Bootstrap: docker
+From: almalinux:9-minimal 
+
+%arguments
+	DEF_HASH=""
+
+%setup
+mkdir ${APPTAINER_ROOTFS}/w
+mkdir ${APPTAINER_ROOTFS}/volatile
+mkdir ${APPTAINER_ROOTFS}/cache
+mkdir ${APPTAINER_ROOTFS}/scratch
+mkdir ${APPTAINER_ROOTFS}/cvmfs
+wget https://pki.jlab.org/JLabCA.crt -O  ${APPTAINER_ROOTFS}/etc/pki/ca-trust/source/anchors/JLabCA.crt
+
+
+%files 
+	./dnf.sh /opt/dnf.sh
+	./packages /opt/packages
+	./hcana.sh /opt/hcana.sh
+	./ladlib.sh /opt/ladlib.sh
+%post
+	ln -s /w/work /work
+	update-ca-trust
+	bash /opt/dnf.sh
+	bash /opt/hcana.sh
+	bash /opt/ladlib.sh
+	
+	NOW=`date`
+	
+	rm /opt/dnf.sh  /opt/hcana.sh /opt/ladlib.sh /opt/packages 
+	echo "LADLIB_HASH $(git -C /opt/LADlib-src rev-parse --short HEAD)" >> $APPTAINER_LABELS
+	echo "HCANA_HASH $(git -C /opt/hcana-src rev-parse --short HEAD)" >> $APPTAINER_LABELS
+	echo "ROOT_VERSION $(root-config --version)" >> $APPTAINER_LABELS
+	
+%environment
+	export PATH=/opt/hcana/bin:$PATH
+	export LD_LIBRARY_PATH=/opt/LADlib/lib64/:$LD_LIBRARY_PATH
+	export ROOT_INCLUDE_PATH=/opt/LADlib/include:/opt/hcana/include:$ROOT_INCLUDE_PATH
+
+%runscript
+	hcana "$@"
+
+%test 
+	hcana -v
+	if [ $? -eq 0 ]; then
+        echo "hcana is running sucessfully."
+    else
+        echo "Build failed."
+        exit 1
+    fi
+	hcana -l -b -q -e "gSystem->Load(\"libLAD\")"
+	if [ $? -eq 0 ]; then
+        echo "LADlib is loaded sucessfully."
+    else
+        echo "Build failed."
+        exit 2
+    fi
+
+%labels
+	DEF_HASH {{ DEF_HASH }}
