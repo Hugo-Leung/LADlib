@@ -1746,9 +1746,11 @@ Int_t THcLADGEMModule::Decode(const THaEvData &evdata) {
         // with how the "Hit" root files are produced, let's use the same threshold;
         // this amounts to using a higher effective threshold than cutting on the max ADC sample would have been:
         // fThresholdStripSum is in many respects redundant with fZeroSuppressRMS
-        if (!fZeroSuppress ||
-            (ADCsum_temp / double(fN_MPD_TIME_SAMP) > fZeroSuppressRMS * rmstemp) && ADCsum_temp != 0) { // Default threshold is 5-sigma!
-            //not sure if the condition ADCsum_temp != 0 is necessary, but it prevents division by zero in the average calculation.
+		  
+		// ADCsum_temp != 0 protects Tmean = Tsum / ADCsum_temp below, which can happen with zero suppression off
+        // when lgem_zerosuppress_TS has set every sample of a strip to 0
+        if ((!fZeroSuppress || ADCsum_temp / double(fN_MPD_TIME_SAMP) > fZeroSuppressRMS * rmstemp) && // Default threshold is 5-sigma!
+            ADCsum_temp != 0) {
           // Increment hit count and populate decoded data structures:
           // threshold on the average ADC
 
